@@ -7,6 +7,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -15,6 +16,49 @@ import (
 
 var RDB *redis.Client
 var RedisEnabled = true
+
+func redisKeyPrefix() string {
+	prefix := strings.TrimSpace(os.Getenv("REDIS_KEY_PREFIX"))
+	prefix = strings.Trim(prefix, ":")
+	if prefix == "" {
+		return ""
+	}
+	return prefix + ":"
+}
+
+func RedisPrefixedKey(key string) string {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return ""
+	}
+	prefix := redisKeyPrefix()
+	key = strings.TrimLeft(key, ":")
+	if prefix == "" || strings.HasPrefix(key, prefix) {
+		return key
+	}
+	return prefix + key
+}
+
+func RedisPrefixedPattern(pattern string) string {
+	pattern = strings.TrimSpace(pattern)
+	if pattern == "" {
+		return pattern
+	}
+	prefix := redisKeyPrefix()
+	pattern = strings.TrimLeft(pattern, ":")
+	if prefix == "" || strings.HasPrefix(pattern, prefix) {
+		return pattern
+	}
+	return prefix + pattern
+}
+
+func RedisUnprefixedKey(key string) string {
+	prefix := redisKeyPrefix()
+	if prefix == "" {
+		return strings.TrimLeft(key, ":")
+	}
+	return strings.TrimPrefix(key, prefix)
+}
 
 func RedisKeyCacheSeconds() int {
 	return SyncFrequency
@@ -62,6 +106,7 @@ func ParseRedisOption() *redis.Options {
 }
 
 func RedisSet(key string, value string, expiration time.Duration) error {
+	key = RedisPrefixedKey(key)
 	if DebugEnabled {
 		SysLog(fmt.Sprintf("Redis SET: key=%s, value=%s, expiration=%v", key, value, expiration))
 	}
@@ -70,6 +115,7 @@ func RedisSet(key string, value string, expiration time.Duration) error {
 }
 
 func RedisGet(key string) (string, error) {
+	key = RedisPrefixedKey(key)
 	if DebugEnabled {
 		SysLog(fmt.Sprintf("Redis GET: key=%s", key))
 	}
@@ -89,6 +135,7 @@ func RedisGet(key string) (string, error) {
 //}
 
 func RedisDel(key string) error {
+	key = RedisPrefixedKey(key)
 	if DebugEnabled {
 		SysLog(fmt.Sprintf("Redis DEL: key=%s", key))
 	}
@@ -97,6 +144,7 @@ func RedisDel(key string) error {
 }
 
 func RedisDelKey(key string) error {
+	key = RedisPrefixedKey(key)
 	if DebugEnabled {
 		SysLog(fmt.Sprintf("Redis DEL Key: key=%s", key))
 	}
@@ -105,6 +153,7 @@ func RedisDelKey(key string) error {
 }
 
 func RedisHSetObj(key string, obj interface{}, expiration time.Duration) error {
+	key = RedisPrefixedKey(key)
 	if DebugEnabled {
 		SysLog(fmt.Sprintf("Redis HSET: key=%s, obj=%+v, expiration=%v", key, obj, expiration))
 	}
@@ -159,6 +208,7 @@ func RedisHSetObj(key string, obj interface{}, expiration time.Duration) error {
 }
 
 func RedisHGetObj(key string, obj interface{}) error {
+	key = RedisPrefixedKey(key)
 	if DebugEnabled {
 		SysLog(fmt.Sprintf("Redis HGETALL: key=%s", key))
 	}
@@ -240,6 +290,7 @@ func RedisHGetObj(key string, obj interface{}) error {
 
 // RedisIncr Add this function to handle atomic increments
 func RedisIncr(key string, delta int64) error {
+	key = RedisPrefixedKey(key)
 	if DebugEnabled {
 		SysLog(fmt.Sprintf("Redis INCR: key=%s, delta=%d", key, delta))
 	}
@@ -273,6 +324,7 @@ func RedisIncr(key string, delta int64) error {
 }
 
 func RedisHIncrBy(key, field string, delta int64) error {
+	key = RedisPrefixedKey(key)
 	if DebugEnabled {
 		SysLog(fmt.Sprintf("Redis HINCRBY: key=%s, field=%s, delta=%d", key, field, delta))
 	}
@@ -300,6 +352,7 @@ func RedisHIncrBy(key, field string, delta int64) error {
 }
 
 func RedisHSetField(key, field string, value interface{}) error {
+	key = RedisPrefixedKey(key)
 	if DebugEnabled {
 		SysLog(fmt.Sprintf("Redis HSET field: key=%s, field=%s, value=%v", key, field, value))
 	}

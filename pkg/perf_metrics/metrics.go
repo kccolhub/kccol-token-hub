@@ -354,5 +354,5 @@ func mergeRedisActiveBuckets(merged map[bucketKey]counters, params QueryParams, 
 }
 
 func redisBucketKey(key bucketKey) string {
-	return fmt.Sprintf("perf:%s:%s:%d", key.model, key.group, key.bucketTs)
+	return common.RedisPrefixedKey(fmt.Sprintf("perf:%s:%s:%d", key.model, key.group, key.bucketTs))
 }

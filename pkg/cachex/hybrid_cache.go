@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/go-redis/redis/v8"
 	"github.com/samber/hot"
 )
@@ -85,6 +86,7 @@ func (c *HybridCache[V]) Get(key string) (value V, found bool, err error) {
 	}
 
 	if c.redisOn() {
+		full = common.RedisPrefixedKey(full)
 		ctx, cancel := context.WithTimeout(context.Background(), defaultRedisOpTimeout)
 		defer cancel()
 
@@ -115,6 +117,7 @@ func (c *HybridCache[V]) SetWithTTL(key string, v V, ttl time.Duration) error {
 	}
 
 	if c.redisOn() {
+		full = common.RedisPrefixedKey(full)
 		raw, err := c.redisCodec.Encode(v)
 		if err != nil {
 			return err
@@ -137,6 +140,7 @@ func (c *HybridCache[V]) Keys() ([]string, error) {
 }
 
 func (c *HybridCache[V]) scanKeys(match string) ([]string, error) {
+	match = common.RedisPrefixedPattern(match)
 	ctx, cancel := context.WithTimeout(context.Background(), defaultRedisScanTimeout)
 	defer cancel()
 
@@ -152,6 +156,9 @@ func (c *HybridCache[V]) scanKeys(match string) ([]string, error) {
 		if cursor == 0 {
 			break
 		}
+	}
+	for i, key := range keys {
+		keys[i] = common.RedisUnprefixedKey(key)
 	}
 	return keys, nil
 }
@@ -253,6 +260,7 @@ func (c *HybridCache[V]) DeleteMany(keys []string) (map[string]bool, error) {
 		pipe := c.redis.Pipeline()
 		cmds := make([]*redis.IntCmd, 0, len(fullKeys))
 		for _, k := range fullKeys {
+			k = common.RedisPrefixedKey(k)
 			// UNLINK is non-blocking vs DEL for large key batches.
 			cmds = append(cmds, pipe.Unlink(ctx, k))
 		}
