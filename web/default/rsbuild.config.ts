@@ -69,6 +69,7 @@ export default defineConfig(({ envMode }) => {
     },
     output: {
       // Production optimizations
+      assetPrefix: './',
       minify: isProd,
       target: 'web',
       distPath: {
