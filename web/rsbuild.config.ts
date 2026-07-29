@@ -72,7 +72,10 @@ export default defineConfig(({ envMode }) => {
     },
     output: {
       // Production optimizations
-      assetPrefix: './',
+      // The SPA is served from nested routes such as /dashboard/models.
+      // Root-relative assets keep initial and lazy chunks under /static
+      // instead of incorrectly resolving them below the current route.
+      assetPrefix: '/',
       minify: isProd,
       target: 'web',
       distPath: {
