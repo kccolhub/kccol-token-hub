@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -13,6 +14,18 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
+
+func TestRedisAuthCacheKeysUseConfiguredPrefix(t *testing.T) {
+	t.Setenv("REDIS_KEY_PREFIX", "micro-service-kccol-token-hub")
+
+	assert.Equal(t, "micro-service-kccol-token-hub:user:4200", getUserCacheKey(4200))
+	assert.Equal(t, "micro-service-kccol-token-hub:auth:user:fence:4200", getUserAuthFenceKey(4200))
+	assert.Equal(t, "micro-service-kccol-token-hub:auth:user:version:4200", getUserAuthVersionKey(4200))
+	assert.True(t, strings.HasPrefix(
+		userSessionCacheKey("prefixed-session"),
+		"micro-service-kccol-token-hub:auth:session:",
+	))
+}
 
 func useUserCacheMiniRedis(t *testing.T) *miniredis.Miniredis {
 	t.Helper()

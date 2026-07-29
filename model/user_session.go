@@ -123,7 +123,7 @@ func (entry *userSessionCacheEntry) session() *UserSession {
 
 func userSessionCacheKey(sid string) string {
 	digest := common.GenerateHMACWithKey([]byte("user-session-cache-v1:"+common.SessionSecret), sid)
-	return "auth:session:" + digest
+	return common.RedisPrefixedKey("auth:session:" + digest)
 }
 
 func userSessionCacheDeadline() time.Time {

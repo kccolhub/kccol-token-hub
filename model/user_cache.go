@@ -48,7 +48,7 @@ func (user *UserBase) GetSetting() dto.UserSetting {
 
 // getUserCacheKey returns the key for user cache
 func getUserCacheKey(userId int) string {
-	return fmt.Sprintf("user:%d", userId)
+	return common.RedisPrefixedKey(fmt.Sprintf("user:%d", userId))
 }
 
 func userCacheTTLSeconds() int {
