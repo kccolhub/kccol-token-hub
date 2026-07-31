@@ -66,7 +66,7 @@ type Task struct {
 	Username   string                `json:"username,omitempty" gorm:"-"`
 	// 禁止返回给用户，内部可能包含key等隐私信息
 	PrivateData TaskPrivateData `json:"-" gorm:"column:private_data;type:json"`
-	Data        json.RawMessage `json:"data" gorm:"type:json"`
+	Data        json.RawMessage `json:"data" gorm:"type:json;serializer:json"`
 }
 
 func (t *Task) SetData(data any) {
@@ -85,19 +85,19 @@ type Properties struct {
 }
 
 func (m *Properties) Scan(val interface{}) error {
-	bytesValue, _ := val.([]byte)
-	if len(bytesValue) == 0 {
-		*m = Properties{}
-		return nil
-	}
-	return common.Unmarshal(bytesValue, m)
+	*m = Properties{}
+	return scanDatabaseJSON(val, m)
 }
 
 func (m Properties) Value() (driver.Value, error) {
 	if m == (Properties{}) {
 		return nil, nil
 	}
-	return common.Marshal(m)
+	data, err := common.Marshal(m)
+	if err != nil {
+		return nil, err
+	}
+	return string(data), nil
 }
 
 type TaskPrivateData struct {
@@ -147,18 +147,18 @@ func GenerateTaskID() string {
 }
 
 func (p *TaskPrivateData) Scan(val interface{}) error {
-	bytesValue, _ := val.([]byte)
-	if len(bytesValue) == 0 {
-		return nil
-	}
-	return common.Unmarshal(bytesValue, p)
+	return scanDatabaseJSON(val, p)
 }
 
 func (p TaskPrivateData) Value() (driver.Value, error) {
 	if (p == TaskPrivateData{}) {
 		return nil, nil
 	}
-	return common.Marshal(p)
+	data, err := common.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+	return string(data), nil
 }
 
 // SyncTaskQueryParams 用于包含所有搜索条件的结构体，可以根据需求添加更多字段
