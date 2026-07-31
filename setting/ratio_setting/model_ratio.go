@@ -96,10 +96,20 @@ var defaultModelRatio = map[string]float64{
 	"gpt-5-mini-2025-08-07":                     0.125,
 	"gpt-5-nano":                                0.025,
 	"gpt-5-nano-2025-08-07":                     0.025,
+	"gpt-5.4":                                   1.25, // $2.5 / 1M tokens
+	"gpt-5.4-2026-03-05":                        1.25,
+	"gpt-5.4-pro":                               15, // $30 / 1M tokens
+	"gpt-5.4-pro-2026-03-05":                    15,
+	"gpt-5.4-mini":                              0.375, // $0.75 / 1M tokens
+	"gpt-5.4-mini-2026-03-17":                   0.375,
+	"gpt-5.4-nano":                              0.1, // $0.2 / 1M tokens
+	"gpt-5.4-nano-2026-03-17":                   0.1,
 	"gpt-5.5":                                   2.5, // $5 / 1M tokens
-	"gpt-5.6-sol":                               2.5,
-	"gpt-5.6-terra":                             1.25,
-	"gpt-5.6-luna":                              0.5,
+	"gpt-5.5-2026-04-23":                        2.5,
+	"gpt-5.6":                                   2.5,  // alias of gpt-5.6-sol
+	"gpt-5.6-sol":                               2.5,  // $5 / 1M tokens
+	"gpt-5.6-terra":                             1.25, // $2.5 / 1M tokens
+	"gpt-5.6-luna":                              0.5,  // $1 / 1M tokens
 	"gpt-3.5-turbo":                             0.25,
 	"gpt-3.5-turbo-0613":                        0.75,
 	"gpt-3.5-turbo-16k":                         1.5, // $0.003 / 1K tokens
