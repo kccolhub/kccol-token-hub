@@ -1,9 +1,16 @@
 package model
 
 import (
+	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/glebarez/sqlite"
+	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -198,4 +205,151 @@ func TestAdminResetPlanSubscriptionsNoMatchSucceeds(t *testing.T) {
 	assert.Zero(t, result.ResetCount)
 	assert.Zero(t, result.UserCount)
 	assert.Empty(t, result.AffectedUserIds)
+}
+
+func TestCustomSubscriptionResetAnchorBoundaries(t *testing.T) {
+	anchor := time.Date(2026, 9, 15, 10, 2, 0, 0, time.FixedZone("CST", 8*3600)).Unix()
+	const week = int64(7 * 24 * 3600)
+	for _, tc := range []struct {
+		name                            string
+		base, anchor, period, end, want int64
+	}{
+		{"before anchor", anchor - 3600, anchor, week, 0, anchor},
+		{"at anchor starts next period", anchor, anchor, week, 0, anchor + week},
+		{"late purchase follows shared schedule", anchor + 3600, anchor, week, 0, anchor + week},
+		{"many missed periods", anchor + 100*week + 3600, anchor, week, 0, anchor + 101*week},
+		{"five hour interval", anchor + 1, anchor, 18000, 0, anchor + 18000},
+		{"legacy activation based interval", anchor + 3600, 0, week, 0, anchor + 3600 + week},
+		{"subscription ends before reset", anchor - 3600, anchor, week, anchor - 1, 0},
+		{"reset at end is allowed", anchor - 3600, anchor, week, anchor, anchor},
+		{"zero interval", anchor - 3600, anchor, 0, 0, 0},
+		{"oversized interval cannot wrap", anchor, anchor, 9223372036854775807, 0, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			plan := &SubscriptionPlan{QuotaResetPeriod: SubscriptionResetCustom, QuotaResetCustomSeconds: tc.period, QuotaResetAnchorTime: tc.anchor}
+			assert.Equal(t, tc.want, calcNextResetTime(time.Unix(tc.base, 0), plan, tc.end))
+		})
+	}
+}
+
+func TestSubscriptionResetAnchorPersistsAndAlignsNewPurchases(t *testing.T) {
+	truncateTables(t)
+	anchor := GetDBTimestamp() + 3600
+	plan := &SubscriptionPlan{Title: "Anchored weekly", DurationUnit: SubscriptionDurationMonth, DurationValue: 1,
+		TotalAmount: 1000, QuotaResetPeriod: SubscriptionResetCustom, QuotaResetCustomSeconds: 604800, QuotaResetAnchorTime: anchor}
+	seedSubscriptionResetPlan(t, plan)
+	var loaded SubscriptionPlan
+	require.NoError(t, DB.First(&loaded, plan.Id).Error)
+	require.Equal(t, anchor, loaded.QuotaResetAnchorTime)
+	for _, userID := range []int{99001, 99002} {
+		sub, err := CreateUserSubscriptionFromPlanTx(DB, userID, &loaded, "admin")
+		require.NoError(t, err)
+		assert.Equal(t, anchor, sub.NextResetTime)
+		assert.Equal(t, int64(0), sub.AmountUsed)
+	}
+}
+
+func TestAnchoredSubscriptionResetSkipsMissedPeriodsWithoutEarlyOrDuplicateReset(t *testing.T) {
+	truncateTables(t)
+	anchor := int64(1789437720)
+	const interval = int64(18000)
+	plan := &SubscriptionPlan{Title: "Anchored", QuotaResetPeriod: SubscriptionResetCustom, QuotaResetCustomSeconds: interval, QuotaResetAnchorTime: anchor}
+	seedSubscriptionResetPlan(t, plan)
+	sub := &UserSubscription{UserId: 99001, PlanId: plan.Id, Status: "active", StartTime: anchor - 100, EndTime: anchor + 100000*interval,
+		LastResetTime: anchor - 100, NextResetTime: anchor, AmountTotal: 1000, AmountUsed: 400}
+	require.NoError(t, DB.Create(sub).Error)
+	require.NoError(t, maybeResetUserSubscriptionWithPlanTx(DB, sub, plan, anchor-1))
+	assert.Equal(t, int64(400), sub.AmountUsed)
+	now := anchor + 99999*interval + 10
+	require.NoError(t, maybeResetUserSubscriptionWithPlanTx(DB, sub, plan, now))
+	assert.Zero(t, sub.AmountUsed)
+	assert.Equal(t, anchor+99999*interval, sub.LastResetTime)
+	assert.Equal(t, anchor+100000*interval, sub.NextResetTime)
+	sub.AmountUsed = 50
+	require.NoError(t, DB.Save(sub).Error)
+	require.NoError(t, maybeResetUserSubscriptionWithPlanTx(DB, sub, plan, now+1))
+	assert.Equal(t, int64(50), sub.AmountUsed)
+	require.NoError(t, resetUserSubscriptionTx(DB, sub, plan, now+2, true))
+	assert.Equal(t, anchor+100000*interval, sub.NextResetTime)
+
+	// A delayed reset worker must not advance beyond subscription expiry.
+	sub.EndTime = anchor + 100000*interval + 100
+	require.NoError(t, maybeResetUserSubscriptionWithPlanTx(DB, sub, plan, anchor+100010*interval))
+	assert.Equal(t, anchor+100000*interval, sub.LastResetTime)
+	assert.Zero(t, sub.NextResetTime)
+}
+
+// External DSNs must point to disposable test databases. Only this test's tables are created/dropped.
+func TestSubscriptionResetAnchorSchemaMigration(t *testing.T) {
+	for _, engine := range []string{"sqlite", "mysql", "postgres"} {
+		t.Run(engine, func(t *testing.T) {
+			var dialector gorm.Dialector
+			switch engine {
+			case "sqlite":
+				dialector = sqlite.Open(":memory:")
+			case "mysql":
+				dsn := os.Getenv("SUBSCRIPTION_TEST_MYSQL_DSN")
+				if dsn == "" {
+					t.Skip("SUBSCRIPTION_TEST_MYSQL_DSN not configured")
+				}
+				dialector = mysqlMigrationDialector{mysql.Dialector{Config: &mysql.Config{DSN: dsn}}}
+			case "postgres":
+				dsn := os.Getenv("SUBSCRIPTION_TEST_POSTGRES_DSN")
+				if dsn == "" {
+					t.Skip("SUBSCRIPTION_TEST_POSTGRES_DSN not configured")
+				}
+				dialector = postgresMigrationDialector{postgres.Dialector{Config: &postgres.Config{DSN: dsn, PreferSimpleProtocol: true}}}
+			}
+			db, err := gorm.Open(dialector, &gorm.Config{})
+			require.NoError(t, err)
+			sqlDB, err := db.DB()
+			require.NoError(t, err)
+			sqlDB.SetMaxOpenConns(1)
+			defer sqlDB.Close()
+			var version string
+			query := "SELECT version()"
+			if engine == "sqlite" {
+				query = "SELECT sqlite_version()"
+			}
+			require.NoError(t, db.Raw(query).Scan(&version).Error)
+			t.Logf("database=%s version=%s", engine, version)
+			recorder := &migrationSQLRecorder{}
+			db = db.Session(&gorm.Session{Logger: recorder})
+			for _, upgrade := range []bool{false, true} {
+				name := fmt.Sprintf("subscription_anchor_test_%d", time.Now().UnixNano())
+				table := db.Table(name)
+				require.NoError(t, table.AutoMigrate(&SubscriptionPlan{}))
+				defer db.Table(name).Migrator().DropTable(&SubscriptionPlan{})
+				var existingPlanID int
+				if upgrade {
+					// Reproduce the previous plan schema, which differs only by this column.
+					require.NoError(t, db.Table(name).Migrator().DropColumn(&SubscriptionPlan{}, "QuotaResetAnchorTime"))
+					old := SubscriptionPlan{Title: "Existing plan", QuotaResetPeriod: "daily", TotalAmount: 1000}
+					require.NoError(t, db.Table(name).Omit("QuotaResetAnchorTime").Create(&old).Error)
+					existingPlanID = old.Id
+				}
+				for i := 0; i < 2; i++ {
+					recorder.reset()
+					require.NoError(t, db.Table(name).AutoMigrate(&SubscriptionPlan{}))
+					if i > 0 {
+						assert.Empty(t, recorder.schemaMutations(), "repeated migration must not alter the schema")
+					}
+				}
+				if upgrade {
+					var old SubscriptionPlan
+					require.NoError(t, db.Table(name).First(&old, existingPlanID).Error)
+					assert.Zero(t, old.QuotaResetAnchorTime)
+					assert.Equal(t, "daily", old.QuotaResetPeriod)
+					assert.Equal(t, int64(1000), old.TotalAmount)
+				}
+				plan := SubscriptionPlan{Title: "New plan", QuotaResetPeriod: SubscriptionResetCustom, QuotaResetCustomSeconds: 604800, QuotaResetAnchorTime: 1789437720}
+				require.NoError(t, db.Table(name).Create(&plan).Error)
+				var loaded SubscriptionPlan
+				require.NoError(t, db.Table(name).First(&loaded, plan.Id).Error)
+				assert.Equal(t, plan.QuotaResetAnchorTime, loaded.QuotaResetAnchorTime)
+				assert.Error(t, db.Table(name).Create(&loaded).Error, "primary key uniqueness must survive migration")
+				t.Logf("upgrade=%t: anchor persisted, old data preserved, repeat migration stable, primary key enforced", upgrade)
+			}
+		})
+	}
 }

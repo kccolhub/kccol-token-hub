@@ -39,6 +39,12 @@ export function getPlanFormSchema(t: TFunction) {
       'custom',
     ]),
     quota_reset_custom_seconds: z.coerce.number().min(0).optional(),
+    quota_reset_anchor_time: z
+      .number()
+      .int()
+      .min(0)
+      .max(253402300799)
+      .optional(),
     enabled: z.boolean(),
     sort_order: z.coerce.number(),
     allow_balance_pay: z.boolean(),
@@ -64,6 +70,7 @@ export const PLAN_FORM_DEFAULTS: PlanFormValues = {
   custom_seconds: 0,
   quota_reset_period: 'never',
   quota_reset_custom_seconds: 0,
+  quota_reset_anchor_time: 0,
   enabled: true,
   sort_order: 0,
   allow_balance_pay: true,
@@ -87,6 +94,7 @@ export function planToFormValues(plan: SubscriptionPlan): PlanFormValues {
     custom_seconds: Number(plan.custom_seconds || 0),
     quota_reset_period: plan.quota_reset_period || 'never',
     quota_reset_custom_seconds: Number(plan.quota_reset_custom_seconds || 0),
+    quota_reset_anchor_time: plan.quota_reset_anchor_time || 0,
     enabled: plan.enabled !== false,
     sort_order: Number(plan.sort_order || 0),
     allow_balance_pay: plan.allow_balance_pay !== false,
@@ -113,6 +121,10 @@ export function formValuesToPlanPayload(values: PlanFormValues): PlanPayload {
       quota_reset_custom_seconds:
         values.quota_reset_period === 'custom'
           ? Number(values.quota_reset_custom_seconds || 0)
+          : 0,
+      quota_reset_anchor_time:
+        values.quota_reset_period === 'custom'
+          ? values.quota_reset_anchor_time || 0
           : 0,
       sort_order: Number(values.sort_order || 0),
       max_purchase_per_user: Number(values.max_purchase_per_user || 0),

@@ -184,6 +184,8 @@ type SubscriptionPlan struct {
 	// Quota reset period for plan
 	QuotaResetPeriod        string `json:"quota_reset_period" gorm:"type:varchar(16);default:'never'"`
 	QuotaResetCustomSeconds int64  `json:"quota_reset_custom_seconds" gorm:"type:bigint;default:0"`
+	// Optional fixed origin for custom reset intervals, set when creating a plan.
+	QuotaResetAnchorTime int64 `json:"quota_reset_anchor_time" gorm:"type:bigint;not null;default:0"`
 
 	CreatedAt int64 `json:"created_at" gorm:"bigint"`
 	UpdatedAt int64 `json:"updated_at" gorm:"bigint"`
@@ -372,7 +374,20 @@ func calcNextResetTime(base time.Time, plan *SubscriptionPlan, endUnix int64) in
 		if plan.QuotaResetCustomSeconds <= 0 {
 			return 0
 		}
-		next = base.Add(time.Duration(plan.QuotaResetCustomSeconds) * time.Second)
+		if plan.QuotaResetAnchorTime > 0 {
+			nextUnix := plan.QuotaResetAnchorTime
+			if base.Unix() >= nextUnix {
+				remaining := plan.QuotaResetCustomSeconds - (base.Unix()-nextUnix)%plan.QuotaResetCustomSeconds
+				// Keep the resulting timestamp within the supported calendar range.
+				if remaining > 253402300799-base.Unix() {
+					return 0
+				}
+				nextUnix = base.Unix() + remaining
+			}
+			next = time.Unix(nextUnix, 0)
+		} else {
+			next = base.Add(time.Duration(plan.QuotaResetCustomSeconds) * time.Second)
+		}
 	default:
 		return 0
 	}
@@ -1275,6 +1290,17 @@ func maybeResetUserSubscriptionWithPlanTx(tx *gorm.DB, sub *UserSubscription, pl
 	base := time.Unix(baseUnix, 0)
 	next := calcNextResetTime(base, plan, sub.EndTime)
 	advanced := false
+	if plan.QuotaResetPeriod == SubscriptionResetCustom && plan.QuotaResetAnchorTime > 0 && next > 0 && next <= now {
+		// Jump directly to the latest boundary even when many intervals were missed.
+		lastEligible := now
+		if sub.EndTime > 0 && lastEligible > sub.EndTime {
+			lastEligible = sub.EndTime
+		}
+		lastDue := lastEligible - (lastEligible-plan.QuotaResetAnchorTime)%plan.QuotaResetCustomSeconds
+		base = time.Unix(lastDue, 0)
+		next = calcNextResetTime(base, plan, sub.EndTime)
+		advanced = true
+	}
 	for next > 0 && next <= now {
 		advanced = true
 		base = time.Unix(next, 0)

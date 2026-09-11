@@ -5981,6 +5981,10 @@
     "Zero retention": "零数据保留",
     "Zhipu": "智谱",
     "Zhipu V4": "智谱 V4",
-    "Zoom": "缩放"
+    "Zoom": "缩放",
+    "Reset anchor (optional)": "重置起点（可选）",
+    "Start from subscription activation": "从订阅生效时开始",
+    "Time zone: {{timezone}}. All subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Leave empty to start from activation.": "时区：{{timezone}}。所有订阅按此起点和周期统一重置。起点已过则顺延到下一个未来周期；留空则从订阅生效时开始。",
+    "The reset anchor can only be set when creating a plan.": "重置起点仅可在新增套餐时设置。"
   }
 }

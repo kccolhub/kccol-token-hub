@@ -5981,6 +5981,10 @@
     "Zero retention": "Без хранения данных",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Reset anchor (optional)": "Точка отсчёта сброса (необязательно)",
+    "Start from subscription activation": "С момента активации подписки",
+    "Time zone: {{timezone}}. All subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Leave empty to start from activation.": "Часовой пояс: {{timezone}}. Все подписки следуют этой точке отсчёта и интервалу. Для прошедшей даты используется следующая граница периода. Оставьте пустым для отсчёта от активации.",
+    "The reset anchor can only be set when creating a plan.": "Точку отсчёта сброса можно задать только при создании плана."
   }
 }

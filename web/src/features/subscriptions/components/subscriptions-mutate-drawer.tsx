@@ -73,6 +73,7 @@ import {
   type PlanFormValues,
 } from '../lib'
 import type { PlanRecord } from '../types'
+import { SubscriptionResetAnchorField } from './subscription-reset-anchor-field'
 import { useSubscriptions } from './subscriptions-provider'
 
 interface Props {
@@ -703,6 +704,7 @@ placeholder={t('Downgrade to pre-purchase group')}
                   )}
                 />
               </div>
+              <SubscriptionResetAnchorField isEdit={isEdit} />
             </SideDrawerSection>
 
             {/* Payment Config */}

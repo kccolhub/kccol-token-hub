@@ -5981,6 +5981,10 @@
     "Zero retention": "Không lưu dữ liệu",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Reset anchor (optional)": "Mốc đặt lại (không bắt buộc)",
+    "Start from subscription activation": "Từ khi kích hoạt gói đăng ký",
+    "Time zone: {{timezone}}. All subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Leave empty to start from activation.": "Múi giờ: {{timezone}}. Mọi gói đăng ký theo mốc và chu kỳ này. Mốc đã qua được chuyển đến kỳ tiếp theo trong tương lai. Để trống để bắt đầu từ lúc kích hoạt.",
+    "The reset anchor can only be set when creating a plan.": "Chỉ có thể đặt mốc đặt lại khi tạo gói."
   }
 }

@@ -204,6 +204,14 @@ func AdminCreateSubscriptionPlan(c *gin.Context) {
 		common.ApiErrorMsg(c, "自定义重置周期需大于0秒")
 		return
 	}
+	if req.Plan.QuotaResetAnchorTime < 0 || req.Plan.QuotaResetAnchorTime > 253402300799 {
+		common.ApiErrorMsg(c, "重置起点时间无效")
+		return
+	}
+	if req.Plan.QuotaResetAnchorTime > 0 && req.Plan.QuotaResetPeriod != model.SubscriptionResetCustom {
+		common.ApiErrorMsg(c, "指定重置起点仅支持自定义重置周期")
+		return
+	}
 	err := model.DB.Create(&req.Plan).Error
 	if err != nil {
 		common.ApiError(c, err)

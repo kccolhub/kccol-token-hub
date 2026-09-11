@@ -5981,6 +5981,10 @@
     "Zero retention": "Aucune rétention",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Reset anchor (optional)": "Date de référence de réinitialisation (facultative)",
+    "Start from subscription activation": "À partir de l’activation de l’abonnement",
+    "Time zone: {{timezone}}. All subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Leave empty to start from activation.": "Fuseau horaire : {{timezone}}. Tous les abonnements suivent cette date et cet intervalle. Une date passée est reportée à la prochaine échéance. Laissez vide pour partir de l’activation.",
+    "The reset anchor can only be set when creating a plan.": "La date de référence ne peut être définie qu’à la création du forfait."
   }
 }
