@@ -5985,6 +5985,9 @@
     "Reset anchor (optional)": "Точка отсчёта сброса (необязательно)",
     "Start from subscription activation": "С момента активации подписки",
     "Time zone: {{timezone}}. All subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Leave empty to start from activation.": "Часовой пояс: {{timezone}}. Все подписки следуют этой точке отсчёта и интервалу. Для прошедшей даты используется следующая граница периода. Оставьте пустым для отсчёта от активации.",
-    "The reset anchor can only be set when creating a plan.": "Точку отсчёта сброса можно задать только при создании плана."
+    "The reset anchor can only be set when creating a plan.": "Точку отсчёта сброса можно задать только при создании плана.",
+    "Saving reset schedule changes updates all active subscriptions under this plan. Used quota and expiry dates stay unchanged.": "Сохранение изменений расписания обновляет все активные подписки этого тарифа. Использованная квота и сроки окончания не меняются.",
+    "Time zone: {{timezone}}. Active subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Clearing the anchor starts a new interval when you save.": "Часовой пояс: {{timezone}}. Активные подписки используют эту точку отсчёта и интервал. Прошедшая точка переносится на ближайшую будущую границу. При очистке новый интервал начинается после сохранения.",
+    "Start a new interval when saving": "Начать новый интервал при сохранении"
   }
 }

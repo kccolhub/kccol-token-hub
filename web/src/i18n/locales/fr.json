@@ -5985,6 +5985,9 @@
     "Reset anchor (optional)": "Date de référence de réinitialisation (facultative)",
     "Start from subscription activation": "À partir de l’activation de l’abonnement",
     "Time zone: {{timezone}}. All subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Leave empty to start from activation.": "Fuseau horaire : {{timezone}}. Tous les abonnements suivent cette date et cet intervalle. Une date passée est reportée à la prochaine échéance. Laissez vide pour partir de l’activation.",
-    "The reset anchor can only be set when creating a plan.": "La date de référence ne peut être définie qu’à la création du forfait."
+    "The reset anchor can only be set when creating a plan.": "La date de référence ne peut être définie qu’à la création du forfait.",
+    "Saving reset schedule changes updates all active subscriptions under this plan. Used quota and expiry dates stay unchanged.": "Les modifications du calendrier de réinitialisation sont appliquées à tous les abonnements actifs de cette offre. Le quota utilisé et les dates d’expiration restent inchangés.",
+    "Time zone: {{timezone}}. Active subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Clearing the anchor starts a new interval when you save.": "Fuseau horaire : {{timezone}}. Les abonnements actifs suivent cette origine et cet intervalle. Une origine passée avance à la prochaine échéance. Effacer l’origine démarre un nouvel intervalle à l’enregistrement.",
+    "Start a new interval when saving": "Démarrer un nouvel intervalle à l’enregistrement"
   }
 }

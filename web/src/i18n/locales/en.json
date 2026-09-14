@@ -5985,6 +5985,9 @@
     "Reset anchor (optional)": "Reset anchor (optional)",
     "Start from subscription activation": "Start from subscription activation",
     "Time zone: {{timezone}}. All subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Leave empty to start from activation.": "Time zone: {{timezone}}. All subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Leave empty to start from activation.",
-    "The reset anchor can only be set when creating a plan.": "The reset anchor can only be set when creating a plan."
+    "The reset anchor can only be set when creating a plan.": "The reset anchor can only be set when creating a plan.",
+    "Saving reset schedule changes updates all active subscriptions under this plan. Used quota and expiry dates stay unchanged.": "Saving reset schedule changes updates all active subscriptions under this plan. Used quota and expiry dates stay unchanged.",
+    "Time zone: {{timezone}}. Active subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Clearing the anchor starts a new interval when you save.": "Time zone: {{timezone}}. Active subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Clearing the anchor starts a new interval when you save.",
+    "Start a new interval when saving": "Start a new interval when saving"
   }
 }

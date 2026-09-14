@@ -5985,6 +5985,9 @@
     "Reset anchor (optional)": "重置起點（選填）",
     "Start from subscription activation": "從訂閱生效時開始",
     "Time zone: {{timezone}}. All subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Leave empty to start from activation.": "時區：{{timezone}}。所有訂閱依此起點與週期統一重置。起點已過則順延至下一個未來週期；留空則從訂閱生效時開始。",
-    "The reset anchor can only be set when creating a plan.": "重置起點僅可在新增方案時設定。"
+    "The reset anchor can only be set when creating a plan.": "重置起點僅可在新增方案時設定。",
+    "Saving reset schedule changes updates all active subscriptions under this plan. Used quota and expiry dates stay unchanged.": "儲存重置規則的修改後，此方案下所有有效訂閱將同步更新重置時間，已用額度和到期時間保持不變。",
+    "Time zone: {{timezone}}. Active subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Clearing the anchor starts a new interval when you save.": "時區：{{timezone}}。有效訂閱將按此起點和週期重置。過去的起點會順延至下一個未來邊界；清除起點後，儲存時開始新的週期。",
+    "Start a new interval when saving": "儲存時開始新週期"
   }
 }

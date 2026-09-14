@@ -184,7 +184,7 @@ type SubscriptionPlan struct {
 	// Quota reset period for plan
 	QuotaResetPeriod        string `json:"quota_reset_period" gorm:"type:varchar(16);default:'never'"`
 	QuotaResetCustomSeconds int64  `json:"quota_reset_custom_seconds" gorm:"type:bigint;default:0"`
-	// Optional fixed origin for custom reset intervals, set when creating a plan.
+	// Optional fixed origin for custom reset intervals.
 	QuotaResetAnchorTime int64 `json:"quota_reset_anchor_time" gorm:"type:bigint;not null;default:0"`
 
 	CreatedAt int64 `json:"created_at" gorm:"bigint"`
@@ -406,7 +406,7 @@ func getSubscriptionPlanByIdTx(tx *gorm.DB, id int) (*SubscriptionPlan, error) {
 		return nil, errors.New("invalid plan id")
 	}
 	key := subscriptionPlanCacheKey(id)
-	if key != "" {
+	if tx == nil && key != "" {
 		if cached, found, err := getSubscriptionPlanCache().Get(key); err == nil && found {
 			cached.NormalizeDefaults()
 			return &cached, nil
@@ -421,8 +421,68 @@ func getSubscriptionPlanByIdTx(tx *gorm.DB, id int) (*SubscriptionPlan, error) {
 		return nil, err
 	}
 	plan.NormalizeDefaults()
-	_ = getSubscriptionPlanCache().SetWithTTL(key, plan, subscriptionPlanCacheTTL())
+	if tx == nil {
+		_ = getSubscriptionPlanCache().SetWithTTL(key, plan, subscriptionPlanCacheTTL())
+	}
 	return &plan, nil
+}
+
+// UpdateSubscriptionPlanWithResetSchedule keeps active subscriptions aligned without
+// granting quota or changing their purchased allowance and expiry.
+func UpdateSubscriptionPlanWithResetSchedule(id int, updates map[string]interface{}) error {
+	if id <= 0 {
+		return errors.New("invalid plan id")
+	}
+	now := GetDBTimestamp()
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		var previous SubscriptionPlan
+		if err := lockForUpdate(tx).First(&previous, id).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&SubscriptionPlan{}).Where("id = ?", id).Updates(updates).Error; err != nil {
+			return err
+		}
+		var plan SubscriptionPlan
+		if err := tx.First(&plan, id).Error; err != nil {
+			return err
+		}
+		if plan.QuotaResetAnchorTime < 0 || plan.QuotaResetAnchorTime > 253402300799 {
+			return errors.New("重置起点时间无效")
+		}
+		if plan.QuotaResetPeriod != SubscriptionResetCustom && plan.QuotaResetAnchorTime != 0 {
+			// A calendar/never schedule no longer uses a custom anchor.
+			plan.QuotaResetAnchorTime = 0
+			if err := tx.Model(&SubscriptionPlan{}).Where("id = ?", id).Update("quota_reset_anchor_time", 0).Error; err != nil {
+				return err
+			}
+		} else if plan.QuotaResetPeriod == SubscriptionResetCustom && plan.QuotaResetCustomSeconds <= 0 {
+			return errors.New("自定义重置周期需大于0秒")
+		}
+		if previous.QuotaResetPeriod == plan.QuotaResetPeriod &&
+			(plan.QuotaResetPeriod != SubscriptionResetCustom || previous.QuotaResetCustomSeconds == plan.QuotaResetCustomSeconds) &&
+			previous.QuotaResetAnchorTime == plan.QuotaResetAnchorTime {
+			return nil
+		}
+		var subs []UserSubscription
+		if err := lockForUpdate(tx).Where("plan_id = ? AND status = ? AND end_time > ?", id, "active", now).
+			Order("id asc").Find(&subs).Error; err != nil {
+			return err
+		}
+		for _, sub := range subs {
+			if err := tx.Model(&UserSubscription{}).Where("id = ?", sub.Id).Updates(map[string]interface{}{
+				"last_reset_time": now,
+				"next_reset_time": calcNextResetTime(time.Unix(now, 0), &plan, sub.EndTime),
+				"updated_at":      now,
+			}).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err == nil {
+		InvalidateSubscriptionPlanCache(id)
+	}
+	return err
 }
 
 func CountUserSubscriptionsByPlan(userId int, planId int) (int64, error) {
@@ -1469,16 +1529,16 @@ func ResetDueSubscriptions(limit int) (int, error) {
 	resetCount := 0
 	for _, sub := range subs {
 		subCopy := sub
-		plan, err := getSubscriptionPlanByIdTx(nil, sub.PlanId)
-		if err != nil || plan == nil {
-			continue
-		}
-		err = DB.Transaction(func(tx *gorm.DB) error {
+		err := DB.Transaction(func(tx *gorm.DB) error {
 			var locked UserSubscription
 			if err := lockForUpdate(tx).
 				Where("id = ? AND next_reset_time > 0 AND next_reset_time <= ?", subCopy.Id, now).
 				First(&locked).Error; err != nil {
 				return nil
+			}
+			plan, err := getSubscriptionPlanByIdTx(tx, locked.PlanId)
+			if err != nil {
+				return err
 			}
 			if err := maybeResetUserSubscriptionWithPlanTx(tx, &locked, plan, now); err != nil {
 				return err

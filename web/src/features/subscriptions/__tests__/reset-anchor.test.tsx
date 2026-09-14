@@ -16,7 +16,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { TFunction } from 'i18next'
 import { useForm } from 'react-hook-form'
@@ -83,15 +82,33 @@ describe('subscription reset anchor', () => {
     render(<Harness period='weekly' />)
     expect(screen.queryByRole('group')).not.toBeInTheDocument()
   })
-  it('shows an existing anchor read-only when editing a plan', () => {
-    render(<Harness isEdit anchor={1789437720} />)
+  it('allows an existing plan to edit its anchor and explains how active subscriptions follow the new anchor', async () => {
+    const save = vi.fn()
+    render(
+      <Harness
+        isEdit
+        anchor={new Date(2026, 8, 15, 10, 2).getTime() / 1000}
+        onSubmit={save}
+      />
+    )
+    fireEvent.change(screen.getByDisplayValue('10:02'), {
+      target: { value: '11:03' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await vi.waitFor(() => expect(save).toHaveBeenCalled())
+    expect(save.mock.calls[0][0].quota_reset_anchor_time).toBe(
+      new Date(2026, 8, 15, 11, 3).getTime() / 1000
+    )
     expect(
-      screen.getByText('The reset anchor can only be set when creating a plan.')
+      screen.getByText(/Active subscriptions follow this anchor and interval/)
     ).toBeInTheDocument()
+  })
+  it('allows an existing custom plan without an anchor to choose one', () => {
+    render(<Harness isEdit />)
+    expect(screen.getByRole('group')).toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: 'Clear' })
-    ).not.toBeInTheDocument()
-    expect(screen.getAllByRole('button')).toHaveLength(1)
+      screen.getByRole('button', { name: 'Start a new interval when saving' })
+    ).toBeEnabled()
   })
   it('omits a previously chosen anchor when switching away from a custom cycle', () => {
     const values = {

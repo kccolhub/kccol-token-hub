@@ -33,13 +33,9 @@ export function SubscriptionResetAnchorField(props: { isEdit: boolean }) {
   const { t } = useTranslation()
   const form = useFormContext<PlanFormValues>()
   const period = useWatch({ control: form.control, name: 'quota_reset_period' })
-  const anchor = useWatch({
-    control: form.control,
-    name: 'quota_reset_anchor_time',
-  })
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 
-  if (period !== 'custom' || (props.isEdit && !anchor)) return null
+  if (period !== 'custom') return null
 
   return (
     <FormField
@@ -51,30 +47,25 @@ export function SubscriptionResetAnchorField(props: { isEdit: boolean }) {
             <legend className='text-sm font-medium'>
               {t('Reset anchor (optional)')}
             </legend>
-            {props.isEdit ? (
-              <p className='text-sm'>
-                {new Date((field.value || 0) * 1000).toLocaleString()}
-              </p>
-            ) : (
-              <DateTimePicker
-                value={field.value ? new Date(field.value * 1000) : undefined}
-                onChange={(date) =>
-                  field.onChange(date ? Math.floor(date.getTime() / 1000) : 0)
-                }
-                placeholder={t('Start from subscription activation')}
-              />
-            )}
+            <DateTimePicker
+              value={field.value ? new Date(field.value * 1000) : undefined}
+              onChange={(date) =>
+                field.onChange(date ? Math.floor(date.getTime() / 1000) : 0)
+              }
+              placeholder={
+                props.isEdit
+                  ? t('Start a new interval when saving')
+                  : t('Start from subscription activation')
+              }
+            />
             <FormDescription>
               {t(
-                'Time zone: {{timezone}}. All subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Leave empty to start from activation.',
+                props.isEdit
+                  ? 'Time zone: {{timezone}}. Active subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Clearing the anchor starts a new interval when you save.'
+                  : 'Time zone: {{timezone}}. All subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Leave empty to start from activation.',
                 { timezone }
               )}
             </FormDescription>
-            {props.isEdit && (
-              <FormDescription>
-                {t('The reset anchor can only be set when creating a plan.')}
-              </FormDescription>
-            )}
             <FormMessage />
           </fieldset>
         </FormItem>

@@ -7,10 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/glebarez/sqlite"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -279,40 +281,46 @@ func TestAnchoredSubscriptionResetSkipsMissedPeriodsWithoutEarlyOrDuplicateReset
 	assert.Zero(t, sub.NextResetTime)
 }
 
+func openSubscriptionResetTestDB(t *testing.T, engine string) *gorm.DB {
+	t.Helper()
+	var dialector gorm.Dialector
+	switch engine {
+	case "sqlite":
+		dialector = sqlite.Open(":memory:")
+	case "mysql":
+		dsn := os.Getenv("SUBSCRIPTION_TEST_MYSQL_DSN")
+		if dsn == "" {
+			t.Skip("SUBSCRIPTION_TEST_MYSQL_DSN not configured")
+		}
+		dialector = mysqlMigrationDialector{mysql.Dialector{Config: &mysql.Config{DSN: dsn}}}
+	case "postgres":
+		dsn := os.Getenv("SUBSCRIPTION_TEST_POSTGRES_DSN")
+		if dsn == "" {
+			t.Skip("SUBSCRIPTION_TEST_POSTGRES_DSN not configured")
+		}
+		dialector = postgresMigrationDialector{postgres.Dialector{Config: &postgres.Config{DSN: dsn, PreferSimpleProtocol: true}}}
+	}
+	db, err := gorm.Open(dialector, &gorm.Config{NamingStrategy: schema.NamingStrategy{TablePrefix: fmt.Sprintf("subscription_reset_test_%d_", time.Now().UnixNano())}})
+	require.NoError(t, err)
+	sqlDB, err := db.DB()
+	require.NoError(t, err)
+	sqlDB.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	var version string
+	query := "SELECT version()"
+	if engine == "sqlite" {
+		query = "SELECT sqlite_version()"
+	}
+	require.NoError(t, db.Raw(query).Scan(&version).Error)
+	t.Logf("database=%s version=%s", engine, version)
+	return db
+}
+
 // External DSNs must point to disposable test databases. Only this test's tables are created/dropped.
 func TestSubscriptionResetAnchorSchemaMigration(t *testing.T) {
 	for _, engine := range []string{"sqlite", "mysql", "postgres"} {
 		t.Run(engine, func(t *testing.T) {
-			var dialector gorm.Dialector
-			switch engine {
-			case "sqlite":
-				dialector = sqlite.Open(":memory:")
-			case "mysql":
-				dsn := os.Getenv("SUBSCRIPTION_TEST_MYSQL_DSN")
-				if dsn == "" {
-					t.Skip("SUBSCRIPTION_TEST_MYSQL_DSN not configured")
-				}
-				dialector = mysqlMigrationDialector{mysql.Dialector{Config: &mysql.Config{DSN: dsn}}}
-			case "postgres":
-				dsn := os.Getenv("SUBSCRIPTION_TEST_POSTGRES_DSN")
-				if dsn == "" {
-					t.Skip("SUBSCRIPTION_TEST_POSTGRES_DSN not configured")
-				}
-				dialector = postgresMigrationDialector{postgres.Dialector{Config: &postgres.Config{DSN: dsn, PreferSimpleProtocol: true}}}
-			}
-			db, err := gorm.Open(dialector, &gorm.Config{})
-			require.NoError(t, err)
-			sqlDB, err := db.DB()
-			require.NoError(t, err)
-			sqlDB.SetMaxOpenConns(1)
-			defer sqlDB.Close()
-			var version string
-			query := "SELECT version()"
-			if engine == "sqlite" {
-				query = "SELECT sqlite_version()"
-			}
-			require.NoError(t, db.Raw(query).Scan(&version).Error)
-			t.Logf("database=%s version=%s", engine, version)
+			db := openSubscriptionResetTestDB(t, engine)
 			recorder := &migrationSQLRecorder{}
 			db = db.Session(&gorm.Session{Logger: recorder})
 			for _, upgrade := range []bool{false, true} {
@@ -350,6 +358,100 @@ func TestSubscriptionResetAnchorSchemaMigration(t *testing.T) {
 				assert.Error(t, db.Table(name).Create(&loaded).Error, "primary key uniqueness must survive migration")
 				t.Logf("upgrade=%t: anchor persisted, old data preserved, repeat migration stable, primary key enforced", upgrade)
 			}
+		})
+	}
+}
+
+func TestSubscriptionResetAnchorEditingPreservesQuota(t *testing.T) {
+	for _, engine := range []string{"sqlite", "mysql", "postgres"} {
+		t.Run(engine, func(t *testing.T) {
+			db := openSubscriptionResetTestDB(t, engine)
+			require.NoError(t, db.AutoMigrate(&SubscriptionPlan{}, &UserSubscription{}))
+			t.Cleanup(func() {
+				_ = db.Migrator().DropTable(&UserSubscription{}, &SubscriptionPlan{})
+			})
+			previousDB, previousType := DB, common.MainDatabaseType()
+			DB = db
+			common.SetMainDatabaseType(common.DatabaseType(engine))
+			t.Cleanup(func() { DB = previousDB; common.SetMainDatabaseType(previousType) })
+			now := GetDBTimestamp()
+			plan := SubscriptionPlan{Title: "Editable", QuotaResetPeriod: SubscriptionResetCustom, QuotaResetCustomSeconds: 18000, QuotaResetAnchorTime: now + 100}
+			other := SubscriptionPlan{Title: "Other"}
+			require.NoError(t, db.Create(&plan).Error)
+			require.NoError(t, db.Create(&other).Error)
+			InvalidateSubscriptionPlanCache(plan.Id)
+			t.Cleanup(func() { InvalidateSubscriptionPlanCache(plan.Id) })
+			originals := []UserSubscription{
+				{UserId: 101, PlanId: plan.Id, Status: "active", EndTime: now + 86400},
+				{UserId: 102, PlanId: plan.Id, Status: "active", EndTime: now + 86400},
+				{UserId: 103, PlanId: plan.Id, Status: "active", EndTime: now + 500},
+				{UserId: 104, PlanId: plan.Id, Status: "active", EndTime: now - 1},
+				{UserId: 105, PlanId: plan.Id, Status: "cancelled", EndTime: now + 86400},
+				{UserId: 106, PlanId: other.Id, Status: "active", EndTime: now + 86400},
+			}
+			for i := range originals {
+				originals[i].StartTime, originals[i].LastResetTime = now-1000, now-1000
+				originals[i].NextResetTime = plan.QuotaResetAnchorTime
+				originals[i].AmountTotal, originals[i].AmountUsed = 1000, 400
+				require.NoError(t, db.Create(&originals[i]).Error)
+			}
+			_, err := GetSubscriptionPlanById(plan.Id) // A cached plan must be invalidated after saving.
+			require.NoError(t, err)
+			require.NoError(t, UpdateSubscriptionPlanWithResetSchedule(plan.Id, map[string]interface{}{"title": "Renamed"}))
+			unchanged := getSubscriptionResetSub(t, originals[0].Id)
+			assert.Equal(t, originals[0].NextResetTime, unchanged.NextResetTime)
+			assert.Equal(t, originals[0].LastResetTime, unchanged.LastResetTime)
+			require.Error(t, UpdateSubscriptionPlanWithResetSchedule(plan.Id, map[string]interface{}{"title": "Must rollback", "quota_reset_anchor_time": -1}))
+			var savedPlan SubscriptionPlan
+			require.NoError(t, db.First(&savedPlan, plan.Id).Error)
+			assert.Equal(t, "Renamed", savedPlan.Title)
+			assert.Equal(t, plan.QuotaResetAnchorTime, savedPlan.QuotaResetAnchorTime)
+
+			newAnchor := now + 3600
+			require.NoError(t, UpdateSubscriptionPlanWithResetSchedule(plan.Id, map[string]interface{}{"quota_reset_anchor_time": newAnchor}))
+			for i, original := range originals {
+				saved := getSubscriptionResetSub(t, original.Id)
+				assert.Equal(t, original.AmountUsed, saved.AmountUsed)
+				assert.Equal(t, original.AmountTotal, saved.AmountTotal)
+				assert.Equal(t, original.EndTime, saved.EndTime)
+				assert.Equal(t, original.StartTime, saved.StartTime)
+				if i < 3 {
+					assert.GreaterOrEqual(t, saved.LastResetTime, now)
+					if i == 2 {
+						assert.Zero(t, saved.NextResetTime)
+					} else {
+						assert.Equal(t, newAnchor, saved.NextResetTime)
+					}
+				} else {
+					assert.Equal(t, original.NextResetTime, saved.NextResetTime)
+					assert.Equal(t, original.LastResetTime, saved.LastResetTime)
+				}
+			}
+			updated, err := GetSubscriptionPlanById(plan.Id)
+			require.NoError(t, err)
+			assert.Equal(t, newAnchor, updated.QuotaResetAnchorTime)
+			sub := getSubscriptionResetSub(t, originals[0].Id)
+			require.NoError(t, maybeResetUserSubscriptionWithPlanTx(db, &sub, updated, newAnchor-1))
+			assert.EqualValues(t, 400, sub.AmountUsed)
+			require.NoError(t, maybeResetUserSubscriptionWithPlanTx(db, &sub, updated, newAnchor))
+			assert.Zero(t, sub.AmountUsed)
+			assert.Equal(t, newAnchor+18000, sub.NextResetTime)
+
+			pastAnchor := now - 100
+			require.NoError(t, UpdateSubscriptionPlanWithResetSchedule(plan.Id, map[string]interface{}{"quota_reset_anchor_time": pastAnchor, "quota_reset_custom_seconds": 300}))
+			sub = getSubscriptionResetSub(t, originals[1].Id)
+			assert.Greater(t, sub.NextResetTime, GetDBTimestamp())
+			assert.Zero(t, (sub.NextResetTime-pastAnchor)%300)
+			assert.EqualValues(t, 400, sub.AmountUsed)
+			require.NoError(t, UpdateSubscriptionPlanWithResetSchedule(plan.Id, map[string]interface{}{"quota_reset_anchor_time": 0}))
+			sub = getSubscriptionResetSub(t, originals[1].Id)
+			assert.Equal(t, sub.LastResetTime+300, sub.NextResetTime)
+			assert.EqualValues(t, 400, sub.AmountUsed)
+			require.NoError(t, UpdateSubscriptionPlanWithResetSchedule(plan.Id, map[string]interface{}{"quota_reset_period": SubscriptionResetNever}))
+			sub = getSubscriptionResetSub(t, originals[1].Id)
+			assert.Zero(t, sub.NextResetTime)
+			assert.EqualValues(t, 400, sub.AmountUsed)
+			t.Log("active subscriptions rescheduled; usage, expiry and unrelated subscriptions preserved; new boundaries honored")
 		})
 	}
 }

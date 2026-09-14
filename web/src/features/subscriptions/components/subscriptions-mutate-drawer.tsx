@@ -705,6 +705,13 @@ placeholder={t('Downgrade to pre-purchase group')}
                 />
               </div>
               <SubscriptionResetAnchorField isEdit={isEdit} />
+              {isEdit && (
+                <p className='text-muted-foreground text-sm'>
+                  {t(
+                    'Saving reset schedule changes updates all active subscriptions under this plan. Used quota and expiry dates stay unchanged.'
+                  )}
+                </p>
+              )}
             </SideDrawerSection>
 
             {/* Payment Config */}

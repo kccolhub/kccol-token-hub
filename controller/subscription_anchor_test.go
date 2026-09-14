@@ -23,7 +23,7 @@ func TestSubscriptionAnchorCreateValidationAndUpdatePreservation(t *testing.T) {
 	sqlDB, err := db.DB()
 	require.NoError(t, err)
 	t.Cleanup(func() { sqlDB.Close() })
-	require.NoError(t, db.AutoMigrate(&model.SubscriptionPlan{}))
+	require.NoError(t, db.AutoMigrate(&model.SubscriptionPlan{}, &model.UserSubscription{}))
 	previousDB, previousRedis := model.DB, common.RedisEnabled
 	model.DB, common.RedisEnabled = db, false
 	t.Cleanup(func() { model.DB = previousDB; common.RedisEnabled = previousRedis })
@@ -64,6 +64,11 @@ func TestSubscriptionAnchorCreateValidationAndUpdatePreservation(t *testing.T) {
 			plan.QuotaResetAnchorTime = 0
 			body, err = common.Marshal(AdminUpsertSubscriptionPlanRequest{Plan: plan})
 			require.NoError(t, err)
+			var legacy map[string]map[string]interface{}
+			require.NoError(t, common.Unmarshal(body, &legacy))
+			delete(legacy["plan"], "quota_reset_anchor_time")
+			body, err = common.Marshal(legacy)
+			require.NoError(t, err)
 			req = httptest.NewRequest(http.MethodPut, "/plans/"+strconv.Itoa(response.Data.Id), bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
 			recorder = httptest.NewRecorder()
@@ -77,6 +82,37 @@ func TestSubscriptionAnchorCreateValidationAndUpdatePreservation(t *testing.T) {
 			require.NoError(t, db.First(&saved, response.Data.Id).Error)
 			assert.Equal(t, tc.anchor, saved.QuotaResetAnchorTime)
 			assert.Equal(t, "Edited title", saved.Title)
+			if tc.period != "custom" {
+				return
+			}
+			now := common.GetTimestamp()
+			sub := model.UserSubscription{UserId: 90001, PlanId: saved.Id, Status: "active", StartTime: now - 100, EndTime: now + 86400, LastResetTime: now - 100, NextResetTime: now + 100, AmountTotal: 1000, AmountUsed: 400}
+			require.NoError(t, db.Create(&sub).Error)
+			for _, anchor := range []int64{now + 3600, -1, 253402300800, 0} {
+				plan.QuotaResetAnchorTime = anchor
+				body, err = common.Marshal(AdminUpsertSubscriptionPlanRequest{Plan: plan})
+				require.NoError(t, err)
+				req = httptest.NewRequest(http.MethodPut, "/plans/"+strconv.Itoa(saved.Id), bytes.NewReader(body))
+				req.Header.Set("Content-Type", "application/json")
+				recorder = httptest.NewRecorder()
+				router.ServeHTTP(recorder, req)
+				require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &updateResponse))
+				valid := anchor >= 0 && anchor <= 253402300799
+				require.Equal(t, valid, updateResponse.Success, recorder.Body.String())
+				require.NoError(t, db.First(&saved, saved.Id).Error)
+				if valid {
+					assert.Equal(t, anchor, saved.QuotaResetAnchorTime)
+				} else {
+					assert.Equal(t, now+3600, saved.QuotaResetAnchorTime)
+				}
+				var updatedSub model.UserSubscription
+				require.NoError(t, db.First(&updatedSub, sub.Id).Error)
+				assert.Equal(t, sub.AmountUsed, updatedSub.AmountUsed)
+				assert.Equal(t, sub.EndTime, updatedSub.EndTime)
+				if anchor != 0 {
+					assert.Equal(t, now+3600, updatedSub.NextResetTime)
+				}
+			}
 		})
 	}
 }

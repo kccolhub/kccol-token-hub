@@ -10,7 +10,6 @@ import (
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 // ---- Shared types ----
@@ -221,6 +220,14 @@ func AdminCreateSubscriptionPlan(c *gin.Context) {
 	common.ApiSuccess(c, req.Plan)
 }
 
+// A pointer distinguishes an omitted anchor (older clients) from explicitly clearing it.
+type AdminUpdateSubscriptionPlanRequest struct {
+	Plan struct {
+		model.SubscriptionPlan
+		QuotaResetAnchorTime *int64 `json:"quota_reset_anchor_time"`
+	} `json:"plan"`
+}
+
 func AdminUpdateSubscriptionPlan(c *gin.Context) {
 	if !requirePaymentCompliance(c) {
 		return
@@ -231,7 +238,7 @@ func AdminUpdateSubscriptionPlan(c *gin.Context) {
 		common.ApiErrorMsg(c, "无效的ID")
 		return
 	}
-	var req AdminUpsertSubscriptionPlanRequest
+	var req AdminUpdateSubscriptionPlanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ApiErrorMsg(c, "参数错误")
 		return
@@ -287,45 +294,54 @@ func AdminUpdateSubscriptionPlan(c *gin.Context) {
 		return
 	}
 
-	err := model.DB.Transaction(func(tx *gorm.DB) error {
-		// update plan (allow zero values updates with map)
-		updateMap := map[string]interface{}{
-			"title":                      req.Plan.Title,
-			"subtitle":                   req.Plan.Subtitle,
-			"price_amount":               req.Plan.PriceAmount,
-			"currency":                   req.Plan.Currency,
-			"duration_unit":              req.Plan.DurationUnit,
-			"duration_value":             req.Plan.DurationValue,
-			"custom_seconds":             req.Plan.CustomSeconds,
-			"enabled":                    req.Plan.Enabled,
-			"sort_order":                 req.Plan.SortOrder,
-			"stripe_price_id":            req.Plan.StripePriceId,
-			"creem_product_id":           req.Plan.CreemProductId,
-			"waffo_pancake_product_id":   req.Plan.WaffoPancakeProductId,
-			"max_purchase_per_user":      req.Plan.MaxPurchasePerUser,
-			"total_amount":               req.Plan.TotalAmount,
-			"upgrade_group":              req.Plan.UpgradeGroup,
-			"downgrade_group":            req.Plan.DowngradeGroup,
-			"quota_reset_period":         req.Plan.QuotaResetPeriod,
-			"quota_reset_custom_seconds": req.Plan.QuotaResetCustomSeconds,
-			"updated_at":                 common.GetTimestamp(),
+	if req.Plan.QuotaResetAnchorTime != nil {
+		anchor := *req.Plan.QuotaResetAnchorTime
+		if anchor < 0 || anchor > 253402300799 {
+			common.ApiErrorMsg(c, "重置起点时间无效")
+			return
 		}
-		if req.Plan.AllowBalancePay != nil {
-			updateMap["allow_balance_pay"] = *req.Plan.AllowBalancePay
+		if anchor > 0 && req.Plan.QuotaResetPeriod != model.SubscriptionResetCustom {
+			common.ApiErrorMsg(c, "指定重置起点仅支持自定义重置周期")
+			return
 		}
-		if req.Plan.AllowWalletOverflow != nil {
-			updateMap["allow_wallet_overflow"] = *req.Plan.AllowWalletOverflow
-		}
-		if err := tx.Model(&model.SubscriptionPlan{}).Where("id = ?", id).Updates(updateMap).Error; err != nil {
-			return err
-		}
-		return nil
-	})
+	}
+
+	// Allow explicit zero values while preserving fields omitted by older clients.
+	updateMap := map[string]interface{}{
+		"title":                      req.Plan.Title,
+		"subtitle":                   req.Plan.Subtitle,
+		"price_amount":               req.Plan.PriceAmount,
+		"currency":                   req.Plan.Currency,
+		"duration_unit":              req.Plan.DurationUnit,
+		"duration_value":             req.Plan.DurationValue,
+		"custom_seconds":             req.Plan.CustomSeconds,
+		"enabled":                    req.Plan.Enabled,
+		"sort_order":                 req.Plan.SortOrder,
+		"stripe_price_id":            req.Plan.StripePriceId,
+		"creem_product_id":           req.Plan.CreemProductId,
+		"waffo_pancake_product_id":   req.Plan.WaffoPancakeProductId,
+		"max_purchase_per_user":      req.Plan.MaxPurchasePerUser,
+		"total_amount":               req.Plan.TotalAmount,
+		"upgrade_group":              req.Plan.UpgradeGroup,
+		"downgrade_group":            req.Plan.DowngradeGroup,
+		"quota_reset_period":         req.Plan.QuotaResetPeriod,
+		"quota_reset_custom_seconds": req.Plan.QuotaResetCustomSeconds,
+		"updated_at":                 common.GetTimestamp(),
+	}
+	if req.Plan.AllowBalancePay != nil {
+		updateMap["allow_balance_pay"] = *req.Plan.AllowBalancePay
+	}
+	if req.Plan.AllowWalletOverflow != nil {
+		updateMap["allow_wallet_overflow"] = *req.Plan.AllowWalletOverflow
+	}
+	if req.Plan.QuotaResetAnchorTime != nil {
+		updateMap["quota_reset_anchor_time"] = *req.Plan.QuotaResetAnchorTime
+	}
+	err := model.UpdateSubscriptionPlanWithResetSchedule(id, updateMap)
 	if err != nil {
 		common.ApiError(c, err)
 		return
 	}
-	model.InvalidateSubscriptionPlanCache(id)
 	common.ApiSuccess(c, nil)
 }
 

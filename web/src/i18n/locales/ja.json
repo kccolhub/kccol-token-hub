@@ -5985,6 +5985,9 @@
     "Reset anchor (optional)": "リセット起点（任意）",
     "Start from subscription activation": "サブスクリプション開始時から",
     "Time zone: {{timezone}}. All subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Leave empty to start from activation.": "タイムゾーン：{{timezone}}。全サブスクリプションをこの起点と間隔に合わせてリセットします。過去の起点は次の境界まで進めます。空欄の場合は契約開始時から計算します。",
-    "The reset anchor can only be set when creating a plan.": "リセット起点はプラン作成時のみ設定できます。"
+    "The reset anchor can only be set when creating a plan.": "リセット起点はプラン作成時のみ設定できます。",
+    "Saving reset schedule changes updates all active subscriptions under this plan. Used quota and expiry dates stay unchanged.": "リセット設定の変更を保存すると、このプランの有効なすべてのサブスクリプションに反映されます。使用済み枠と有効期限は変わりません。",
+    "Time zone: {{timezone}}. Active subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Clearing the anchor starts a new interval when you save.": "タイムゾーン：{{timezone}}。有効なサブスクリプションはこの起点と間隔でリセットされます。過去の起点は次の将来の境界に進みます。起点を削除すると、保存時から新しい間隔が始まります。",
+    "Start a new interval when saving": "保存時から新しい間隔を開始"
   }
 }
