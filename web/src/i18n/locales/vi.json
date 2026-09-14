@@ -5988,6 +5988,8 @@
     "The reset anchor can only be set when creating a plan.": "Chỉ có thể đặt mốc đặt lại khi tạo gói.",
     "Saving reset schedule changes updates all active subscriptions under this plan. Used quota and expiry dates stay unchanged.": "Lưu thay đổi lịch đặt lại sẽ cập nhật mọi đăng ký đang hoạt động của gói này. Hạn mức đã dùng và ngày hết hạn không thay đổi.",
     "Time zone: {{timezone}}. Active subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Clearing the anchor starts a new interval when you save.": "Múi giờ: {{timezone}}. Các đăng ký đang hoạt động tuân theo mốc và chu kỳ này. Mốc trong quá khứ được chuyển đến lần tiếp theo trong tương lai. Xóa mốc sẽ bắt đầu chu kỳ mới khi lưu.",
-    "Start a new interval when saving": "Bắt đầu chu kỳ mới khi lưu"
+    "Start a new interval when saving": "Bắt đầu chu kỳ mới khi lưu",
+    "Start a new cycle now": "Bắt đầu chu kỳ mới ngay",
+    "Set this plan’s reset anchor to the current server time and refill all active subscriptions. Current and future subscriptions will follow the new custom cycle. Expiry dates stay unchanged.": "Đặt mốc đặt lại của gói thành thời gian hiện tại của máy chủ và khôi phục hạn mức mọi đăng ký đang hoạt động. Các đăng ký hiện tại và tương lai sẽ theo chu kỳ tùy chỉnh mới. Ngày hết hạn không thay đổi."
   }
 }

@@ -125,6 +125,7 @@ export interface ResetUserSubscriptionsRequest {
 
 export interface ResetPlanSubscriptionsRequest {
   advance_reset_time: boolean
+  restart_cycle_now?: boolean
 }
 
 export interface SubscriptionResetResult {

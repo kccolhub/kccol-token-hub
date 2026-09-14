@@ -168,7 +168,7 @@ func TestAdminResetPlanSubscriptionsResetsAllActiveUsers(t *testing.T) {
 	seedSubscriptionResetSub(t, &UserSubscription{Id: 9505, UserId: 403, PlanId: plan.Id, AmountTotal: 3000, AmountUsed: 1300, StartTime: now - 7200, EndTime: now - 1, Status: "active", LastResetTime: now - 3600, NextResetTime: now - 10})
 	seedSubscriptionResetSub(t, &UserSubscription{Id: 9506, UserId: 404, PlanId: plan.Id, AmountTotal: 3000, AmountUsed: 1400, StartTime: now - 3600, EndTime: activeEnd, Status: "cancelled", LastResetTime: now - 3600, NextResetTime: now + 10})
 
-	result, err := AdminResetPlanSubscriptions(plan.Id, true)
+	result, err := AdminResetPlanSubscriptions(plan.Id, true, false)
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -199,7 +199,7 @@ func TestAdminResetPlanSubscriptionsNoMatchSucceeds(t *testing.T) {
 	}
 	seedSubscriptionResetPlan(t, plan)
 
-	result, err := AdminResetPlanSubscriptions(plan.Id, true)
+	result, err := AdminResetPlanSubscriptions(plan.Id, true, false)
 
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -452,6 +452,77 @@ func TestSubscriptionResetAnchorEditingPreservesQuota(t *testing.T) {
 			assert.Zero(t, sub.NextResetTime)
 			assert.EqualValues(t, 400, sub.AmountUsed)
 			t.Log("active subscriptions rescheduled; usage, expiry and unrelated subscriptions preserved; new boundaries honored")
+		})
+	}
+}
+
+func TestRestartSubscriptionCycleNow(t *testing.T) {
+	for _, engine := range []string{"sqlite", "mysql", "postgres"} {
+		t.Run(engine, func(t *testing.T) {
+			db := openSubscriptionResetTestDB(t, engine)
+			require.NoError(t, db.AutoMigrate(&SubscriptionPlan{}, &UserSubscription{}))
+			t.Cleanup(func() { _ = db.Migrator().DropTable(&UserSubscription{}, &SubscriptionPlan{}) })
+			previousDB, previousType := DB, common.MainDatabaseType()
+			DB = db
+			common.SetMainDatabaseType(common.DatabaseType(engine))
+			t.Cleanup(func() { DB = previousDB; common.SetMainDatabaseType(previousType) })
+			now := GetDBTimestamp()
+			plan := SubscriptionPlan{Title: "Restartable", QuotaResetPeriod: SubscriptionResetWeekly, QuotaResetCustomSeconds: 300, QuotaResetAnchorTime: now + 100}
+			other := SubscriptionPlan{Title: "Other"}
+			require.NoError(t, db.Create(&plan).Error)
+			require.NoError(t, db.Create(&other).Error)
+			InvalidateSubscriptionPlanCache(plan.Id)
+			t.Cleanup(func() { InvalidateSubscriptionPlanCache(plan.Id) })
+			subs := []UserSubscription{
+				{UserId: 101, PlanId: plan.Id, Status: "active", EndTime: now + 86400},
+				{UserId: 102, PlanId: plan.Id, Status: "active", EndTime: now + 86400},
+				{UserId: 103, PlanId: plan.Id, Status: "active", EndTime: now - 1},
+				{UserId: 104, PlanId: plan.Id, Status: "cancelled", EndTime: now + 86400},
+				{UserId: 105, PlanId: other.Id, Status: "active", EndTime: now + 86400},
+			}
+			for i := range subs {
+				subs[i].AmountTotal, subs[i].AmountUsed = 1000, 400
+				subs[i].StartTime, subs[i].LastResetTime, subs[i].NextResetTime = now-1000, now-1000, now+100
+				require.NoError(t, db.Create(&subs[i]).Error)
+			}
+			_, err := AdminResetPlanSubscriptions(plan.Id, false, true)
+			require.Error(t, err, "calendar plans must not silently change to a rolling interval")
+			assert.EqualValues(t, 400, getSubscriptionResetSub(t, subs[0].Id).AmountUsed)
+			require.NoError(t, db.Model(&plan).Update("quota_reset_period", SubscriptionResetCustom).Error)
+			_, err = GetSubscriptionPlanById(plan.Id)
+			require.NoError(t, err)
+			result, err := AdminResetPlanSubscriptions(plan.Id, false, true)
+			require.NoError(t, err)
+			assert.True(t, result.RestartCycleNow)
+			assert.True(t, result.AdvanceResetTime)
+			assert.Equal(t, 2, result.ResetCount)
+			assert.Equal(t, 2, result.UserCount)
+			updated, err := GetSubscriptionPlanById(plan.Id)
+			require.NoError(t, err)
+			assert.GreaterOrEqual(t, updated.QuotaResetAnchorTime, now)
+			assert.LessOrEqual(t, updated.QuotaResetAnchorTime, GetDBTimestamp())
+			for i, original := range subs {
+				saved := getSubscriptionResetSub(t, original.Id)
+				assert.Equal(t, original.EndTime, saved.EndTime)
+				assert.Equal(t, original.StartTime, saved.StartTime)
+				assert.Equal(t, original.AmountTotal, saved.AmountTotal)
+				if i < 2 {
+					assert.Zero(t, saved.AmountUsed)
+					assert.Equal(t, updated.QuotaResetAnchorTime, saved.LastResetTime)
+					assert.Equal(t, updated.QuotaResetAnchorTime+300, saved.NextResetTime)
+				} else {
+					assert.Equal(t, original.AmountUsed, saved.AmountUsed)
+					assert.Equal(t, original.NextResetTime, saved.NextResetTime)
+				}
+			}
+			sub := getSubscriptionResetSub(t, subs[0].Id)
+			sub.AmountUsed = 25
+			require.NoError(t, db.Save(&sub).Error)
+			require.NoError(t, maybeResetUserSubscriptionWithPlanTx(db, &sub, updated, updated.QuotaResetAnchorTime+299))
+			assert.EqualValues(t, 25, sub.AmountUsed)
+			require.NoError(t, maybeResetUserSubscriptionWithPlanTx(db, &sub, updated, updated.QuotaResetAnchorTime+300))
+			assert.Zero(t, sub.AmountUsed)
+			assert.Equal(t, updated.QuotaResetAnchorTime+600, sub.NextResetTime)
 		})
 	}
 }

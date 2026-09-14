@@ -30,13 +30,17 @@ export function ResetSubscriptionsDialog() {
   const { t } = useTranslation()
   const { open, setOpen, currentRow, triggerRefresh } = useSubscriptions()
   const [advanceResetTime, setAdvanceResetTime] = useState(true)
+  const [restartCycleNow, setRestartCycleNow] = useState(false)
   const [resetting, setResetting] = useState(false)
   const isOpen = open === 'reset-subscriptions'
   const plan = currentRow?.plan
   const planLabel = plan?.title || (plan?.id ? `#${plan.id}` : '-')
 
   useEffect(() => {
-    if (isOpen) setAdvanceResetTime(true)
+    if (isOpen) {
+      setAdvanceResetTime(true)
+      setRestartCycleNow(false)
+    }
   }, [isOpen])
 
   const handleConfirm = async () => {
@@ -45,6 +49,7 @@ export function ResetSubscriptionsDialog() {
     try {
       const res = await resetPlanSubscriptions(plan.id, {
         advance_reset_time: advanceResetTime,
+        restart_cycle_now: restartCycleNow,
       })
       if (res.success) {
         toast.success(
@@ -79,10 +84,31 @@ export function ResetSubscriptionsDialog() {
         <span>{t('Advance next reset time')}</span>
         <Switch
           checked={advanceResetTime}
-          onCheckedChange={(checked) => setAdvanceResetTime(!!checked)}
-          aria-label={t('Advance next reset time')}
+          onCheckedChange={(checked) => {
+            setAdvanceResetTime(!!checked)
+            if (!checked) setRestartCycleNow(false)
+          }}
         />
       </label>
+      {plan?.quota_reset_period === 'custom' && (
+        <div className='space-y-2'>
+          <label className='flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm'>
+            <span>{t('Start a new cycle now')}</span>
+            <Switch
+              checked={restartCycleNow}
+              onCheckedChange={(checked) => {
+                setRestartCycleNow(!!checked)
+                if (checked) setAdvanceResetTime(true)
+              }}
+            />
+          </label>
+          <p className='text-muted-foreground text-sm'>
+            {t(
+              'Set this plan’s reset anchor to the current server time and refill all active subscriptions. Current and future subscriptions will follow the new custom cycle. Expiry dates stay unchanged.'
+            )}
+          </p>
+        </div>
+      )}
     </ConfirmDialog>
   )
 }

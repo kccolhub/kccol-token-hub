@@ -5988,6 +5988,8 @@
     "The reset anchor can only be set when creating a plan.": "La date de référence ne peut être définie qu’à la création du forfait.",
     "Saving reset schedule changes updates all active subscriptions under this plan. Used quota and expiry dates stay unchanged.": "Les modifications du calendrier de réinitialisation sont appliquées à tous les abonnements actifs de cette offre. Le quota utilisé et les dates d’expiration restent inchangés.",
     "Time zone: {{timezone}}. Active subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Clearing the anchor starts a new interval when you save.": "Fuseau horaire : {{timezone}}. Les abonnements actifs suivent cette origine et cet intervalle. Une origine passée avance à la prochaine échéance. Effacer l’origine démarre un nouvel intervalle à l’enregistrement.",
-    "Start a new interval when saving": "Démarrer un nouvel intervalle à l’enregistrement"
+    "Start a new interval when saving": "Démarrer un nouvel intervalle à l’enregistrement",
+    "Start a new cycle now": "Commencer un nouveau cycle maintenant",
+    "Set this plan’s reset anchor to the current server time and refill all active subscriptions. Current and future subscriptions will follow the new custom cycle. Expiry dates stay unchanged.": "Définir l’origine de réinitialisation à l’heure actuelle du serveur et rétablir le quota de tous les abonnements actifs. Les abonnements actuels et futurs suivront ce nouveau cycle personnalisé. Les dates d’expiration restent inchangées."
   }
 }

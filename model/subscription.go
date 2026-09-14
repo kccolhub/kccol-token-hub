@@ -304,6 +304,7 @@ type SubscriptionResetResult struct {
 	ResetCount       int    `json:"reset_count"`
 	UserCount        int    `json:"user_count"`
 	AdvanceResetTime bool   `json:"advance_reset_time"`
+	RestartCycleNow  bool   `json:"restart_cycle_now"`
 	PlanTitle        string `json:"-"`
 	AffectedUserIds  []int  `json:"-"`
 }
@@ -1183,22 +1184,40 @@ func AdminResetUserSubscriptionsByPlan(userId int, planId int, advanceResetTime 
 	return result, nil
 }
 
-func AdminResetPlanSubscriptions(planId int, advanceResetTime bool) (*SubscriptionResetResult, error) {
+func AdminResetPlanSubscriptions(planId int, advanceResetTime bool, restartCycleNow bool) (*SubscriptionResetResult, error) {
 	if planId <= 0 {
 		return nil, errors.New("invalid planId")
 	}
 	var result *SubscriptionResetResult
 	now := GetDBTimestamp()
+	advanceResetTime = advanceResetTime || restartCycleNow
 	err := DB.Transaction(func(tx *gorm.DB) error {
-		plan, err := getSubscriptionPlanByIdTx(tx, planId)
-		if err != nil {
+		var plan SubscriptionPlan
+		if err := lockForUpdate(tx).First(&plan, planId).Error; err != nil {
 			return err
 		}
-		result, err = adminResetPlanSubscriptionsTx(tx, plan, now, advanceResetTime)
+		if restartCycleNow {
+			if plan.QuotaResetPeriod != SubscriptionResetCustom || plan.QuotaResetCustomSeconds <= 0 {
+				return errors.New("从当前时间开始新周期仅支持自定义重置周期")
+			}
+			plan.QuotaResetAnchorTime = now
+			if err := tx.Model(&SubscriptionPlan{}).Where("id = ?", planId).Updates(map[string]interface{}{
+				"quota_reset_anchor_time": now,
+				"updated_at":              now,
+			}).Error; err != nil {
+				return err
+			}
+		}
+		var err error
+		result, err = adminResetPlanSubscriptionsTx(tx, &plan, now, advanceResetTime)
 		return err
 	})
 	if err != nil {
 		return nil, err
+	}
+	result.RestartCycleNow = restartCycleNow
+	if restartCycleNow {
+		InvalidateSubscriptionPlanCache(planId)
 	}
 	return result, nil
 }

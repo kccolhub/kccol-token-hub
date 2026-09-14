@@ -5988,6 +5988,8 @@
     "The reset anchor can only be set when creating a plan.": "重置起點僅可在新增方案時設定。",
     "Saving reset schedule changes updates all active subscriptions under this plan. Used quota and expiry dates stay unchanged.": "儲存重置規則的修改後，此方案下所有有效訂閱將同步更新重置時間，已用額度和到期時間保持不變。",
     "Time zone: {{timezone}}. Active subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Clearing the anchor starts a new interval when you save.": "時區：{{timezone}}。有效訂閱將按此起點和週期重置。過去的起點會順延至下一個未來邊界；清除起點後，儲存時開始新的週期。",
-    "Start a new interval when saving": "儲存時開始新週期"
+    "Start a new interval when saving": "儲存時開始新週期",
+    "Start a new cycle now": "從目前時間開始新週期",
+    "Set this plan’s reset anchor to the current server time and refill all active subscriptions. Current and future subscriptions will follow the new custom cycle. Expiry dates stay unchanged.": "將此方案的重置起點設為伺服器目前時間，並恢復所有有效訂閱的額度。現有及之後新增的訂閱都將遵循新的自訂週期，到期時間保持不變。"
   }
 }

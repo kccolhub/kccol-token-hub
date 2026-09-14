@@ -5988,6 +5988,8 @@
     "The reset anchor can only be set when creating a plan.": "リセット起点はプラン作成時のみ設定できます。",
     "Saving reset schedule changes updates all active subscriptions under this plan. Used quota and expiry dates stay unchanged.": "リセット設定の変更を保存すると、このプランの有効なすべてのサブスクリプションに反映されます。使用済み枠と有効期限は変わりません。",
     "Time zone: {{timezone}}. Active subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Clearing the anchor starts a new interval when you save.": "タイムゾーン：{{timezone}}。有効なサブスクリプションはこの起点と間隔でリセットされます。過去の起点は次の将来の境界に進みます。起点を削除すると、保存時から新しい間隔が始まります。",
-    "Start a new interval when saving": "保存時から新しい間隔を開始"
+    "Start a new interval when saving": "保存時から新しい間隔を開始",
+    "Start a new cycle now": "今から新しいサイクルを開始",
+    "Set this plan’s reset anchor to the current server time and refill all active subscriptions. Current and future subscriptions will follow the new custom cycle. Expiry dates stay unchanged.": "プランのリセット起点をサーバーの現在時刻に設定し、有効なすべてのサブスクリプションの枠を回復します。既存と今後のサブスクリプションは新しいカスタム周期に従います。有効期限は変わりません。"
   }
 }

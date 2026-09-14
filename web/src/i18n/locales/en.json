@@ -5988,6 +5988,8 @@
     "The reset anchor can only be set when creating a plan.": "The reset anchor can only be set when creating a plan.",
     "Saving reset schedule changes updates all active subscriptions under this plan. Used quota and expiry dates stay unchanged.": "Saving reset schedule changes updates all active subscriptions under this plan. Used quota and expiry dates stay unchanged.",
     "Time zone: {{timezone}}. Active subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Clearing the anchor starts a new interval when you save.": "Time zone: {{timezone}}. Active subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Clearing the anchor starts a new interval when you save.",
-    "Start a new interval when saving": "Start a new interval when saving"
+    "Start a new interval when saving": "Start a new interval when saving",
+    "Start a new cycle now": "Start a new cycle now",
+    "Set this plan’s reset anchor to the current server time and refill all active subscriptions. Current and future subscriptions will follow the new custom cycle. Expiry dates stay unchanged.": "Set this plan’s reset anchor to the current server time and refill all active subscriptions. Current and future subscriptions will follow the new custom cycle. Expiry dates stay unchanged."
   }
 }

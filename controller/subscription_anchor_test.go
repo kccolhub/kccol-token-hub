@@ -116,3 +116,36 @@ func TestSubscriptionAnchorCreateValidationAndUpdatePreservation(t *testing.T) {
 		})
 	}
 }
+
+func TestResetPlanSubscriptionsCanRestartCycleNow(t *testing.T) {
+	db := setupManageUserTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.SubscriptionPlan{}, &model.UserSubscription{}))
+	now := common.GetTimestamp()
+	plan := model.SubscriptionPlan{Title: "Restartable", QuotaResetPeriod: model.SubscriptionResetCustom, QuotaResetCustomSeconds: 300, QuotaResetAnchorTime: now + 100}
+	require.NoError(t, db.Create(&plan).Error)
+	require.NoError(t, db.Create(&model.User{Id: 99001, Username: "reset-operator", AffCode: "rst001", Role: common.RoleRootUser}).Error)
+	require.NoError(t, db.Create(&model.User{Id: 99002, Username: "subscriber", AffCode: "rst002"}).Error)
+	sub := model.UserSubscription{UserId: 99002, PlanId: plan.Id, Status: "active", StartTime: now - 100, EndTime: now + 86400, AmountTotal: 1000, AmountUsed: 400, LastResetTime: now - 100, NextResetTime: now + 100}
+	require.NoError(t, db.Create(&sub).Error)
+	t.Cleanup(func() { model.InvalidateSubscriptionPlanCache(plan.Id) })
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/plans/"+strconv.Itoa(plan.Id)+"/subscriptions/reset", bytes.NewBufferString(`{"advance_reset_time":false,"restart_cycle_now":true}`))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: strconv.Itoa(plan.Id)}}
+	c.Set("id", 99001)
+	c.Set("role", common.RoleRootUser)
+	c.Set("username", "reset-operator")
+	AdminResetPlanSubscriptions(c)
+	var response struct {
+		Success bool                          `json:"success"`
+		Data    model.SubscriptionResetResult `json:"data"`
+	}
+	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
+	require.True(t, response.Success, recorder.Body.String())
+	assert.True(t, response.Data.RestartCycleNow)
+	assert.True(t, response.Data.AdvanceResetTime)
+	require.NoError(t, db.First(&sub, sub.Id).Error)
+	assert.Zero(t, sub.AmountUsed)
+	assert.Equal(t, sub.LastResetTime+300, sub.NextResetTime)
+}

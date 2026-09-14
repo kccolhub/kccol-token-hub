@@ -436,6 +436,9 @@ func recordSubscriptionResetUserLogs(c *gin.Context, result *model.SubscriptionR
 		return
 	}
 	content := fmt.Sprintf("管理员重置订阅套餐 %s（ID: %d）额度", result.PlanTitle, result.PlanId)
+	if result.RestartCycleNow {
+		content += "，重置周期从当前时间开始"
+	}
 	for _, userId := range result.AffectedUserIds {
 		model.RecordLogWithAdminInfo(userId, model.LogTypeManage, content, adminInfo, nil, c)
 	}
@@ -502,19 +505,24 @@ func AdminResetUserSubscriptionsByPlan(c *gin.Context) {
 	common.ApiSuccess(c, result)
 }
 
+type AdminResetPlanSubscriptionsRequest struct {
+	AdminResetSubscriptionRequest
+	RestartCycleNow bool `json:"restart_cycle_now"`
+}
+
 func AdminResetPlanSubscriptions(c *gin.Context) {
 	planId, _ := strconv.Atoi(c.Param("id"))
 	if planId <= 0 {
 		common.ApiErrorMsg(c, "无效的ID")
 		return
 	}
-	var req AdminResetSubscriptionRequest
+	var req AdminResetPlanSubscriptionsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ApiErrorMsg(c, "参数错误")
 		return
 	}
 	advanceResetTime := resolveAdvanceResetTime(req.AdvanceResetTime)
-	result, err := model.AdminResetPlanSubscriptions(planId, advanceResetTime)
+	result, err := model.AdminResetPlanSubscriptions(planId, advanceResetTime, req.RestartCycleNow)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -528,6 +536,7 @@ func AdminResetPlanSubscriptions(c *gin.Context) {
 		"reset_count":        result.ResetCount,
 		"user_count":         result.UserCount,
 		"advance_reset_time": result.AdvanceResetTime,
+		"restart_cycle_now":  result.RestartCycleNow,
 	})
 	common.ApiSuccess(c, result)
 }
