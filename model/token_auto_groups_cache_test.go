@@ -9,6 +9,7 @@ import (
 )
 
 func TestTokenAutoGroupsRoundTripThroughRedisHashCache(t *testing.T) {
+	t.Setenv("REDIS_KEY_PREFIX", "token-cache-regression:")
 	useUserCacheMiniRedis(t)
 	token := Token{
 		Id:         42,
@@ -29,6 +30,7 @@ func TestTokenAutoGroupsRoundTripThroughRedisHashCache(t *testing.T) {
 }
 
 func TestTokenUpdateSynchronouslyNarrowsPreheatedAutoGroupsCache(t *testing.T) {
+	t.Setenv("REDIS_KEY_PREFIX", "token-cache-regression:")
 	truncateTables(t)
 	useUserCacheMiniRedis(t)
 	token := Token{

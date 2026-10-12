@@ -104,6 +104,7 @@ func TestTryReserveQuotaWithoutRedis(t *testing.T) {
 }
 
 func TestRedisBatchReserveNeverFallsBackToStaleDatabaseBalance(t *testing.T) {
+	t.Setenv("REDIS_KEY_PREFIX", "token-cache-regression:")
 	truncateTables(t)
 	resetBatchUpdateTestState(t)
 	useUserCacheMiniRedis(t)
@@ -221,6 +222,7 @@ func TestSynchronousReserveCompensatesCacheWhenPersistenceFails(t *testing.T) {
 }
 
 func TestTokenCacheInitPreservesLiveQuotaAndFenceBlocksStaleSnapshot(t *testing.T) {
+	t.Setenv("REDIS_KEY_PREFIX", "token-cache-regression:")
 	truncateTables(t)
 	resetBatchUpdateTestState(t)
 	server := useUserCacheMiniRedis(t)
