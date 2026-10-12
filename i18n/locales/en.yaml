@@ -74,3 +74,8 @@ channel.upstream_update_added_models: "Added model examples (showing {{.Shown}}/
 channel.upstream_update_removed_models: "Removed model examples (showing {{.Shown}}/{{.Total}}): {{.Models}}"
 channel.upstream_update_failed_channels: "Failed channel IDs (showing {{.Shown}}/{{.Total}}): {{.Ids}}"
 channel.upstream_update_more_omitted: " ({{.Count}} more omitted)"
+
+# User concurrency limits
+user_concurrency.authentication_required: "Authentication required"
+user_concurrency.exceeded: "Too many concurrent requests for this user"
+user_concurrency.unavailable: "Concurrency limiter unavailable; please retry later"

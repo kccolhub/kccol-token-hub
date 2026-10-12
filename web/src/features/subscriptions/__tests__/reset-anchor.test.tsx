@@ -61,8 +61,8 @@ describe('subscription reset anchor', () => {
     const anchor = new Date(2026, 8, 15, 10, 2, 0)
     const save = vi.fn()
     render(<Harness anchor={anchor.getTime() / 1000} onSubmit={save} />)
-    fireEvent.change(screen.getByDisplayValue('10:02'), {
-      target: { value: '11:03' },
+    fireEvent.change(screen.getByDisplayValue('10:02:00'), {
+      target: { value: '11:03:00' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await vi.waitFor(() => expect(save).toHaveBeenCalled())
@@ -91,8 +91,8 @@ describe('subscription reset anchor', () => {
         onSubmit={save}
       />
     )
-    fireEvent.change(screen.getByDisplayValue('10:02'), {
-      target: { value: '11:03' },
+    fireEvent.change(screen.getByDisplayValue('10:02:00'), {
+      target: { value: '11:03:00' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await vi.waitFor(() => expect(save).toHaveBeenCalled())

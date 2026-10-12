@@ -526,3 +526,37 @@ func TestRestartSubscriptionCycleNow(t *testing.T) {
 		})
 	}
 }
+
+func TestSubscriptionResetAnchorSQLiteStartup(t *testing.T) {
+	for _, legacy := range []bool{false, true} {
+		t.Run(fmt.Sprintf("legacy=%t", legacy), func(t *testing.T) {
+			db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+			require.NoError(t, err)
+			sqlDB, err := db.DB()
+			require.NoError(t, err)
+			t.Cleanup(func() { sqlDB.Close() })
+			previousDB, previousType := DB, common.MainDatabaseType()
+			DB = db
+			common.SetMainDatabaseType(common.DatabaseTypeSQLite)
+			t.Cleanup(func() { DB = previousDB; common.SetMainDatabaseType(previousType) })
+			if legacy {
+				require.NoError(t, db.Exec("CREATE TABLE subscription_plans (id integer PRIMARY KEY, title varchar(128) NOT NULL, price_amount decimal(10,6) NOT NULL)").Error)
+				require.NoError(t, db.Exec("INSERT INTO subscription_plans (id,title,price_amount) VALUES (1,'existing',12.5)").Error)
+			}
+			require.NoError(t, ensureSubscriptionPlanTableSQLite())
+			if legacy {
+				var preserved SubscriptionPlan
+				require.NoError(t, db.First(&preserved, 1).Error)
+				assert.Equal(t, "existing", preserved.Title)
+				assert.Equal(t, 12.5, preserved.PriceAmount)
+				assert.Zero(t, preserved.QuotaResetAnchorTime)
+			}
+			plan := SubscriptionPlan{Title: "anchored", PriceAmount: 5, QuotaResetPeriod: SubscriptionResetCustom, QuotaResetCustomSeconds: 3600, QuotaResetAnchorTime: 1789437720}
+			require.NoError(t, db.Create(&plan).Error)
+			require.NoError(t, ensureSubscriptionPlanTableSQLite())
+			var restored SubscriptionPlan
+			require.NoError(t, db.First(&restored, plan.Id).Error)
+			assert.Equal(t, plan.QuotaResetAnchorTime, restored.QuotaResetAnchorTime)
+		})
+	}
+}

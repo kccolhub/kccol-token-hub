@@ -25,6 +25,8 @@ import {
 } from './section-registry.tsx'
 
 const defaultSecuritySettings: SecuritySettings = {
+  UserConcurrencyLimit:
+    '{"enabled":false,"default_limit":0,"groups":{},"users":{}}',
   ModelRequestRateLimitEnabled: false,
   ModelRequestRateLimitCount: 0,
   ModelRequestRateLimitSuccessCount: 1000,

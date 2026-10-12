@@ -7261,6 +7261,18 @@
     "Time zone: {{timezone}}. Active subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Clearing the anchor starts a new interval when you save.": "时区：{{timezone}}。有效订阅将按此起点和周期重置。过去的起点会顺延至下一个未来边界；清除起点后，保存时开始新的周期。",
     "Start a new interval when saving": "保存时开始新周期",
     "Start a new cycle now": "从当前时间开始新周期",
-    "Set this plan’s reset anchor to the current server time and refill all active subscriptions. Current and future subscriptions will follow the new custom cycle. Expiry dates stay unchanged.": "将此套餐的重置起点设为服务器当前时间，并恢复所有有效订阅的额度。现有及以后新增的订阅都将遵循新的自定义周期，到期时间保持不变。"
+    "Set this plan’s reset anchor to the current server time and refill all active subscriptions. Current and future subscriptions will follow the new custom cycle. Expiry dates stay unchanged.": "将此套餐的重置起点设为服务器当前时间，并恢复所有有效订阅的额度。现有及以后新增的订阅都将遵循新的自定义周期，到期时间保持不变。",
+    "User Concurrency": "用户并发限制",
+    "Save concurrency limits": "保存并发限制",
+    "Enable user concurrency limits": "启用用户并发限制",
+    "Count active requests across all API keys of the same user. Excess requests return 429. Streams occupy a slot until they finish; asynchronous jobs occupy a slot only during submission.": "同一用户的所有 API Key 合计计算正在处理的请求，超限返回 429。流式请求直到结束才释放名额；异步任务仅在提交请求期间占用名额。",
+    "Default concurrent requests per user": "每个用户的默认并发请求数",
+    "0 means unlimited. User overrides take priority over the user group, then the default. Changes apply to new requests.": "0 表示不限。优先级为指定用户、用户所属分组、默认值。修改对新请求生效。",
+    "Concurrency by user group": "按用户分组设置并发数",
+    "Uses the account group, independently of the group selected by an API key. Example: {\"default\": 3, \"vip\": 10}.": "使用账号所属分组，与 API Key 选择的分组无关。示例：{\"default\": 3, \"vip\": 10}。",
+    "Concurrency by user ID": "按用户 ID 设置并发数",
+    "Example: {\"123\": 5}. Remove an entry to inherit its group limit; 0 explicitly allows unlimited requests.": "示例：{\"123\": 5}。删除条目可继承分组限制；填 0 则明确允许不限并发。",
+    "Use a JSON object with group names and integer limits from 0 to 100000.": "请填写 JSON 对象：分组名对应 0 到 100000 之间的整数。",
+    "Use a JSON object with positive user IDs and integer limits from 0 to 100000.": "请填写 JSON 对象：正整数用户 ID 对应 0 到 100000 之间的整数。"
   }
 }

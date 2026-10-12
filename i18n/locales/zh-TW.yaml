@@ -75,3 +75,8 @@ channel.upstream_update_added_models: "新增模型範例（顯示 {{.Shown}}/{{
 channel.upstream_update_removed_models: "刪除模型範例（顯示 {{.Shown}}/{{.Total}}）：{{.Models}}"
 channel.upstream_update_failed_channels: "失敗管道 ID（顯示 {{.Shown}}/{{.Total}}）：{{.Ids}}"
 channel.upstream_update_more_omitted: "（其餘 {{.Count}} 個已省略）"
+
+# User concurrency limits
+user_concurrency.authentication_required: "請先完成身分驗證"
+user_concurrency.exceeded: "該使用者的並行請求數已達上限"
+user_concurrency.unavailable: "並行限制服務暫時無法使用，請稍後重試"

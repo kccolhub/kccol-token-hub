@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { ConcurrencySection } from '../request-limits/concurrency-section'
 import { RateLimitSection } from '../request-limits/rate-limit-section'
 import { SSRFSection } from '../request-limits/ssrf-section'
 import { TokenLimitSection } from '../request-limits/token-limit-section'
@@ -23,6 +24,13 @@ import type { SecuritySettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
 
 const SECURITY_SECTIONS = [
+  {
+    id: 'user-concurrency',
+    titleKey: 'User Concurrency',
+    build: (settings: SecuritySettings) => (
+      <ConcurrencySection value={settings.UserConcurrencyLimit} />
+    ),
+  },
   {
     id: 'rate-limit',
     titleKey: 'Rate Limiting',

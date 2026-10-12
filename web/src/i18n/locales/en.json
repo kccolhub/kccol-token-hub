@@ -7261,6 +7261,18 @@
     "Time zone: {{timezone}}. Active subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Clearing the anchor starts a new interval when you save.": "Time zone: {{timezone}}. Active subscriptions follow this anchor and interval. Past anchors advance to the next future boundary. Clearing the anchor starts a new interval when you save.",
     "Start a new interval when saving": "Start a new interval when saving",
     "Start a new cycle now": "Start a new cycle now",
-    "Set this plan’s reset anchor to the current server time and refill all active subscriptions. Current and future subscriptions will follow the new custom cycle. Expiry dates stay unchanged.": "Set this plan’s reset anchor to the current server time and refill all active subscriptions. Current and future subscriptions will follow the new custom cycle. Expiry dates stay unchanged."
+    "Set this plan’s reset anchor to the current server time and refill all active subscriptions. Current and future subscriptions will follow the new custom cycle. Expiry dates stay unchanged.": "Set this plan’s reset anchor to the current server time and refill all active subscriptions. Current and future subscriptions will follow the new custom cycle. Expiry dates stay unchanged.",
+    "User Concurrency": "User Concurrency",
+    "Save concurrency limits": "Save concurrency limits",
+    "Enable user concurrency limits": "Enable user concurrency limits",
+    "Count active requests across all API keys of the same user. Excess requests return 429. Streams occupy a slot until they finish; asynchronous jobs occupy a slot only during submission.": "Count active requests across all API keys of the same user. Excess requests return 429. Streams occupy a slot until they finish; asynchronous jobs occupy a slot only during submission.",
+    "Default concurrent requests per user": "Default concurrent requests per user",
+    "0 means unlimited. User overrides take priority over the user group, then the default. Changes apply to new requests.": "0 means unlimited. User overrides take priority over the user group, then the default. Changes apply to new requests.",
+    "Concurrency by user group": "Concurrency by user group",
+    "Uses the account group, independently of the group selected by an API key. Example: {\"default\": 3, \"vip\": 10}.": "Uses the account group, independently of the group selected by an API key. Example: {\"default\": 3, \"vip\": 10}.",
+    "Concurrency by user ID": "Concurrency by user ID",
+    "Example: {\"123\": 5}. Remove an entry to inherit its group limit; 0 explicitly allows unlimited requests.": "Example: {\"123\": 5}. Remove an entry to inherit its group limit; 0 explicitly allows unlimited requests.",
+    "Use a JSON object with group names and integer limits from 0 to 100000.": "Use a JSON object with group names and integer limits from 0 to 100000.",
+    "Use a JSON object with positive user IDs and integer limits from 0 to 100000.": "Use a JSON object with positive user IDs and integer limits from 0 to 100000."
   }
 }
